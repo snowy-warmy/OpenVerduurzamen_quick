@@ -1,4 +1,4 @@
-export const OPENAI_SCHEMA_VERSION = "2026-03-04-01";
+export const OPENAI_SCHEMA_VERSION = "2026-03-04-02";
 
 export function getOpenAICardsSchema() {
   return {
@@ -13,14 +13,14 @@ export function getOpenAICardsSchema() {
         items: {
           type: "object",
           additionalProperties: false,
-          // IMPORTANT: strict schema => required moet ALLE keys bevatten die in properties staan
           required: [
             "title",
             "subtitle",
             "bullets",
             "cta",
             "indicative_cost",
-            "indicative_saving"
+            "indicative_saving",
+            "indicative_value_uplift"
           ],
           properties: {
             title: { type: "string", minLength: 3, maxLength: 60 },
@@ -33,9 +33,10 @@ export function getOpenAICardsSchema() {
             },
             cta: { type: "string", minLength: 3, maxLength: 40 },
 
-            // Required maar mag leeg
+            // Required, maar mag leeg ""
             indicative_cost: { type: "string", minLength: 0, maxLength: 40 },
-            indicative_saving: { type: "string", minLength: 0, maxLength: 50 }
+            indicative_saving: { type: "string", minLength: 0, maxLength: 50 },
+            indicative_value_uplift: { type: "string", minLength: 0, maxLength: 60 }
           }
         }
       },
