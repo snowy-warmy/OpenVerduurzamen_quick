@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Huislijn Widget Tester</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+      .wrap { max-width: 980px; margin: 0 auto; }
+      h1 { margin: 0 0 12px; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      input { flex: 1; min-width: 320px; padding: 10px 12px; border: 1px solid rgba(0,0,0,.2); border-radius: 10px; }
+      button { padding: 10px 12px; border: 1px solid rgba(0,0,0,.2); border-radius: 10px; background: #fff; cursor: pointer; }
+      button:hover { background: rgba(0,0,0,.03); }
+      .hint { color: rgba(0,0,0,.65); font-size: 13px; margin-top: 8px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+      .card { border: 1px solid rgba(0,0,0,.12); border-radius: 12px; padding: 12px; }
+      pre { white-space: pre-wrap; word-break: break-word; background: rgba(0,0,0,.04); padding: 12px; border-radius: 12px; overflow: auto; }
+      .ok { color: #0a7; font-weight: 700; }
+      .bad { color: #b00; font-weight: 700; }
+      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(0,0,0,.06); font-size: 12px; }
+      @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Huislijn verduurzamings-widget tester</h1>
+
+      <div class="row">
+        <input id="url" type="url" placeholder="Plak Huislijn URL…"
+          value="https://www.huislijn.nl/koopwoning/nederland/noord-holland/4350417/vogelzand-4202b-julianadorp" />
+        <button id="run">Test</button>
+        <button id="example">Voorbeeld</button>
+      </div>
+
+      <div class="hint">
+        Deze pagina draait op dezelfde Render service en roept <span class="pill">/api/cards?url=…</span> aan.
+      </div>
+
+      <div id="status" style="margin-top:14px;"></div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Resultaat (kaartjes)</h3>
+          <div id="cards"></div>
+        </div>
+
+        <div class="card">
+          <h3>Raw JSON (debug)</h3>
+          <pre id="raw">{}</pre>
+        </div>
+      </div>
+    </div>
+
+    <script src="/test.js"></script>
+  </body>
+</html>
