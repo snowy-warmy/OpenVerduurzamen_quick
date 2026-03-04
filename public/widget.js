@@ -7,7 +7,6 @@
   if (!host) {
     host = document.createElement("div");
     host.id = targetSelector.startsWith("#") ? targetSelector.slice(1) : "huislijn-duurzaamheid-widget";
-    // Plaats hem “onderaan” als fallback; jullie kunnen dit vervangen door de juiste DOM-locatie.
     document.body.appendChild(host);
   }
 
@@ -63,6 +62,7 @@
               const meta = [];
               if (c.indicative_cost) meta.push(`Kosten: ${c.indicative_cost}`);
               if (c.indicative_saving) meta.push(`Besparing: ${c.indicative_saving}`);
+              if (c.indicative_value_uplift) meta.push(`Waarde: ${c.indicative_value_uplift}`);
 
               return `
                 <div class="card">
