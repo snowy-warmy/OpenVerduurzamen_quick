@@ -4,6 +4,7 @@ import { parseHuislijnUrl } from "../utils/parseHuislijnUrl.js";
 import { bagLookupAddress } from "../services/bag.js";
 import { epGetEnergyLabel } from "../services/epOnline.js";
 import { openaiGenerateCards } from "../services/openai.js";
+import { getSchemaDebug } from "../services/openaiSchema.js";
 
 const router = Router();
 
@@ -22,7 +23,7 @@ function isAllowedOrigin(origin) {
   return allowed.includes(origin);
 }
 
-// CORS only for API routes (script load doesn't need CORS)
+// CORS for API routes
 router.use((req, res, next) => {
   const origin = req.headers.origin;
 
@@ -37,7 +38,20 @@ router.use((req, res, next) => {
   next();
 });
 
+// Handy: check what code is running on Render
+router.get("/version", (_req, res) => {
+  res.json({
+    service: "huislijn-duurzaam-widget",
+    schemaDebug: getSchemaDebug(),
+    node: process.version,
+    renderCommit: process.env.RENDER_GIT_COMMIT || null,
+    renderServiceId: process.env.RENDER_SERVICE_ID || null
+  });
+});
+
 router.get("/cards", async (req, res) => {
+  const debug = req.query.debug === "1";
+
   try {
     const url = req.query.url;
     if (!url || typeof url !== "string") {
@@ -50,10 +64,8 @@ router.get("/cards", async (req, res) => {
     const cached = cache.get(cacheKey);
     if (cached) return res.json({ ...cached, cached: true });
 
-    // 1) BAG lookup -> postcode + VBO-id
     const bag = await bagLookupAddress(parsed);
 
-    // 2) EP-online label
     const energyLabel = await epGetEnergyLabel({
       vboId: bag?.adresseerbaarObjectIdentificatie,
       postcode: bag?.postcode,
@@ -62,7 +74,6 @@ router.get("/cards", async (req, res) => {
       huisnummertoevoeging: bag?.huisnummertoevoeging
     });
 
-    // 3) OpenAI cards
     const cards = await openaiGenerateCards({
       address: {
         street: bag?.openbareRuimteNaam || parsed.street,
@@ -81,16 +92,31 @@ router.get("/cards", async (req, res) => {
       bag,
       energyLabel,
       cards,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      ...(debug ? { debug: { schemaDebug: getSchemaDebug() } } : {})
     };
 
     cache.set(cacheKey, payload);
     res.json(payload);
   } catch (err) {
     console.error(err);
+
+    // return extra debug info only when debug=1
     res.status(500).json({
       error: "Failed to generate cards",
-      detail: String(err?.message || err)
+      detail: String(err?.message || err),
+      ...(debug
+        ? {
+            debug: {
+              schemaDebug: getSchemaDebug(),
+              envPresent: {
+                OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
+                BAG_API_KEY: Boolean(process.env.BAG_API_KEY),
+                EPONLINE_API_KEY: Boolean(process.env.EPONLINE_API_KEY)
+              }
+            }
+          }
+        : {})
     });
   }
 });
