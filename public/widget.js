@@ -3,11 +3,10 @@
   const apiBase = script?.getAttribute("data-api-base") || new URL(script.src).origin;
   const targetSelector = script?.getAttribute("data-target") || "#huislijn-duurzaamheid-widget";
 
-  // Optional for demo/testing
-  const overrideUrl = script?.getAttribute("data-url"); // Huislijn URL override
-  const debugMode = script?.getAttribute("data-debug") === "1"; // show detail + call debug/nocache
+  // Demo/testing overrides
+  const overrideUrl = script?.getAttribute("data-url");
+  const debugMode = script?.getAttribute("data-debug") === "1";
 
-  // Host element
   let host = document.querySelector(targetSelector);
   if (!host) {
     host = document.createElement("div");
@@ -15,7 +14,7 @@
     document.body.appendChild(host);
   }
 
-  // Match host page typography/colors (best effort)
+  // Pull page styling (best-effort)
   try {
     const bodyStyle = getComputedStyle(document.body);
     const headingEl = document.querySelector("h1,h2,h3");
@@ -27,240 +26,307 @@
     host.style.setProperty("--hlw-text", bodyStyle.color || "#111");
     host.style.setProperty("--hlw-heading", headingColor || "#0b4b53");
     host.style.setProperty("--hlw-accent", linkColor || "#0b5fff");
-  } catch {
-    // ignore
-  }
+  } catch {}
 
-  // IMPORTANT: reuse existing shadowRoot (demo re-inject), otherwise attachShadow crashes
   const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
 
   shadow.innerHTML = `
-    <style>
-      :host{
-        --hlw-font: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-        --hlw-text: #111;
-        --hlw-heading: #0b4b53;
-        --hlw-accent: #0b5fff;
+  <style>
+    :host{
+      --hlw-font: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      --hlw-text: #111;
+      --hlw-heading: #0b4b53;
+      --hlw-accent: #0b5fff;
 
-        --hlw-bg: #fff;
-        --hlw-border: rgba(0,0,0,.10);
-        --hlw-muted: rgba(0,0,0,.62);
-        --hlw-soft: rgba(0,0,0,.04);
-        --hlw-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+      --hlw-border: rgba(0,0,0,.10);
+      --hlw-muted: rgba(0,0,0,.60);
+      --hlw-soft: rgba(0,0,0,.04);
+      --hlw-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 28px rgba(0,0,0,.06);
 
-        --hlw-radius: 16px;
-        --hlw-card-radius: 14px;
+      --hlw-radius: 18px;
+      --hlw-card-radius: 16px;
 
-        font-family: var(--hlw-font);
-        color: var(--hlw-text);
-        display:block;
-      }
+      font-family: var(--hlw-font);
+      color: var(--hlw-text);
+      display:block;
+    }
 
-      .container{
-        max-width: 730px;
-        width: 100%;
-        background: var(--hlw-bg);
-        border: 1px solid var(--hlw-border);
-        border-radius: var(--hlw-radius);
-        box-shadow: var(--hlw-shadow);
-        padding: 16px;
-        box-sizing: border-box;
-      }
+    .container{
+      max-width: 730px;
+      width: 100%;
+      background: #fff;
+      border: 1px solid var(--hlw-border);
+      border-radius: var(--hlw-radius);
+      box-shadow: var(--hlw-shadow);
+      padding: 18px 18px 14px;
+      box-sizing: border-box;
+    }
 
-      .header{
-        display:flex;
-        justify-content: space-between;
-        align-items:flex-start;
-        gap: 12px;
-        margin-bottom: 14px;
-      }
+    .header{
+      display:flex;
+      justify-content: space-between;
+      align-items:flex-start;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
 
-      .title{
-        margin: 0;
-        font-size: 20px;
-        font-weight: 900;
-        line-height: 1.2;
-        color: var(--hlw-heading);
-      }
+    .title{
+      margin: 0;
+      font-size: 26px;
+      font-weight: 950;
+      line-height: 1.05;
+      color: var(--hlw-text);
+      letter-spacing: -0.02em;
+    }
 
-      .subtitle{
-        margin: 6px 0 0;
-        font-size: 13px;
-        color: var(--hlw-muted);
-        line-height: 1.35;
-      }
+    .subtitle{
+      margin: 8px 0 0;
+      font-size: 16px;
+      color: var(--hlw-muted);
+      line-height: 1.25;
+      font-weight: 600;
+    }
 
-      .pill{
-        display:inline-flex;
-        align-items:center;
-        gap: 8px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--hlw-border);
-        background: var(--hlw-soft);
-        font-size: 12px;
-        font-weight: 800;
-        white-space: nowrap;
-      }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(0,0,0,.03);
+      font-size: 16px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
 
-      .pill .dot{
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: #9aa0a6;
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,.65);
-      }
+    .pill .dot{
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #9aa0a6;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.65);
+    }
 
-      .grid{
-        display:grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-      }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
 
-      .card{
-        border: 1px solid var(--hlw-border);
-        border-radius: var(--hlw-card-radius);
-        background: linear-gradient(180deg, rgba(0,0,0,.015), rgba(0,0,0,0));
-        padding: 14px;
-        box-sizing: border-box;
-        min-width: 0;
-      }
+    .card{
+      border: 1px solid rgba(0,0,0,.10);
+      border-radius: var(--hlw-card-radius);
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      padding: 14px;
+      box-sizing: border-box;
+      min-width: 0;
 
-      .cardTop{
-        display:flex;
-        align-items:center;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
+      display:flex;
+      flex-direction: column;
+      height: 100%;
+    }
 
-      .iconWrap{
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        background: rgba(0,0,0,.04);
-        border: 1px solid rgba(0,0,0,.06);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        flex: 0 0 auto;
-      }
+    .cardHeader{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
 
-      .card h3{
-        margin: 0;
-        font-size: 14px;
-        font-weight: 900;
-        line-height: 1.25;
-      }
+    .leftHead{
+      display:flex;
+      align-items:flex-start;
+      gap: 12px;
+      min-width: 0;
+    }
 
-      .bullets{
-        margin: 0 0 12px;
-        padding-left: 18px;
-        color: var(--hlw-muted);
-        font-size: 13px;
-        line-height: 1.35;
-      }
+    .iconWrap{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.03);
+      border: 1px solid rgba(0,0,0,.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex: 0 0 auto;
+    }
 
-      .kpis{
-        display:grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 8px;
-      }
+    .cardTitle{
+      margin: 0;
+      font-size: 20px;
+      font-weight: 950;
+      line-height: 1.05;
+      letter-spacing: -0.01em;
+      word-break: break-word;
+    }
 
-      .kpi{
-        border: 1px solid rgba(0,0,0,.08);
-        background: rgba(255,255,255,.85);
-        border-radius: 12px;
-        padding: 10px;
-        min-width: 0;
-      }
+    .jumpPill{
+      flex: 0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      font-size: 14px;
+      font-weight: 950;
+      color: rgba(0,0,0,.75);
+      white-space: nowrap;
+    }
 
-      .kpiLabel{
-        font-size: 11px;
-        color: var(--hlw-muted);
-        font-weight: 800;
-        margin-bottom: 4px;
-        display:flex;
-        align-items:center;
-        gap: 6px;
-      }
+    .jumpDot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #9aa0a6;
+    }
 
-      .kpiValue{
-        font-size: 14px;
-        font-weight: 950;
-        line-height: 1.1;
-        color: var(--hlw-text);
-        word-break: break-word;
-      }
+    .bullets{
+      margin: 0 0 12px;
+      padding-left: 18px;
+      color: rgba(0,0,0,.62);
+      font-size: 16px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
 
-      .footer{
-        margin-top: 12px;
-        font-size: 12px;
-        color: var(--hlw-muted);
-        line-height: 1.35;
-      }
+    .bullets li{ margin: 8px 0; }
 
-      .loadingRow{
-        display:grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-      }
+    /* KPI row pinned to bottom */
+    .kpis{
+      margin-top: auto;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0,0,0,.08);
+    }
 
-      .skeleton{
-        height: 186px;
-        border-radius: var(--hlw-card-radius);
-        border: 1px solid var(--hlw-border);
-        background: linear-gradient(90deg, rgba(0,0,0,.03), rgba(0,0,0,.06), rgba(0,0,0,.03));
-        background-size: 220% 100%;
-        animation: shimmer 1.2s ease-in-out infinite;
-      }
+    .kpi{
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.02);
+      border-radius: 14px;
+      padding: 10px 10px 12px;
+      min-width: 0;
+    }
 
-      @keyframes shimmer{
-        0%{ background-position: 0% 0%; }
-        100%{ background-position: 220% 0%; }
-      }
+    .kpiLabel{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      font-size: 14px;
+      color: rgba(0,0,0,.58);
+      font-weight: 900;
+      margin-bottom: 6px;
+      white-space: nowrap;
+    }
 
-      .error{
-        font-size: 13px;
-        color: #b00020;
-        padding: 6px 0;
-      }
+    .kpiIcon{
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+      background: rgba(0,0,0,.05);
+      border: 1px solid rgba(0,0,0,.06);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 13px;
+      font-weight: 950;
+      color: rgba(0,0,0,.70);
+      flex: 0 0 auto;
+    }
 
-      @media (max-width: 900px){
-        .container{ padding: 14px; }
-        .grid{ grid-template-columns: 1fr; }
-        .loadingRow{ grid-template-columns: 1fr; }
-      }
-      @media (max-width: 520px){
-        .kpis{ grid-template-columns: 1fr 1fr; }
-      }
-      @media (max-width: 380px){
-        .kpis{ grid-template-columns: 1fr; }
-      }
-    </style>
+    .kpiValue{
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.05;
 
-    <div class="container">
-      <div class="header">
-        <div>
-          <h2 class="title">Verduurzamingsadvies</h2>
-          <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
-        </div>
-        <div class="pill" id="hlw-pill">
-          <span class="dot" id="hlw-dot"></span>
-          <span id="hlw-pill-text">Energielabel: …</span>
-        </div>
+      /* prevent ugly digit wrapping */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .footer{
+      margin-top: 14px;
+      font-size: 14px;
+      color: rgba(0,0,0,.55);
+      line-height: 1.25;
+      font-weight: 600;
+    }
+
+    .loadingRow{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .skeleton{
+      height: 260px;
+      border-radius: var(--hlw-card-radius);
+      border: 1px solid rgba(0,0,0,.10);
+      background: linear-gradient(90deg, rgba(0,0,0,.03), rgba(0,0,0,.06), rgba(0,0,0,.03));
+      background-size: 220% 100%;
+      animation: shimmer 1.1s ease-in-out infinite;
+    }
+
+    @keyframes shimmer{
+      0%{ background-position: 0% 0%; }
+      100%{ background-position: 220% 0%; }
+    }
+
+    .error{
+      font-size: 14px;
+      color: #b00020;
+      padding: 8px 0;
+      font-weight: 700;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px){
+      .container{ padding: 16px 14px 12px; }
+      .title{ font-size: 22px; }
+      .subtitle{ font-size: 14px; }
+      .pill{ font-size: 14px; padding: 8px 12px; }
+      .grid{ grid-template-columns: 1fr; }
+      .loadingRow{ grid-template-columns: 1fr; }
+      .kpiValue{ white-space: normal; } /* allow wrap on narrow screens */
+    }
+    @media (max-width: 520px){
+      .kpis{ grid-template-columns: 1fr; }
+      .kpiValue{ font-size: 18px; }
+    }
+  </style>
+
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2 class="title">Verduurzamingsadvies</h2>
+        <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
       </div>
-
-      <div id="hlw-body">
-        <div class="loadingRow">
-          <div class="skeleton"></div>
-          <div class="skeleton"></div>
-          <div class="skeleton"></div>
-        </div>
+      <div class="pill" id="hlw-pill">
+        <span class="dot" id="hlw-dot"></span>
+        <span id="hlw-pill-text">Energielabel: …</span>
       </div>
-
-      <div class="footer" id="hlw-footer" style="display:none;"></div>
     </div>
+
+    <div id="hlw-body">
+      <div class="loadingRow">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+
+    <div class="footer" id="hlw-footer" style="display:none;"></div>
+  </div>
   `;
 
   const pillText = shadow.getElementById("hlw-pill-text");
@@ -268,7 +334,6 @@
   const body = shadow.getElementById("hlw-body");
   const footer = shadow.getElementById("hlw-footer");
 
-  // Use overrideUrl for demo, otherwise actual page URL for embed
   const pageUrl = overrideUrl || window.location.href;
 
   const qs = new URLSearchParams({ url: pageUrl });
@@ -292,7 +357,7 @@
       const cards = j?.cards?.cards || [];
       const disclaimer = j?.cards?.disclaimer || "";
 
-      body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c)).join("")}</div>`;
+      body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, label)).join("")}</div>`;
 
       if (disclaimer) {
         footer.style.display = "block";
@@ -319,68 +384,87 @@
     return map[label] || "#9aa0a6";
   }
 
-  function renderCard(c) {
+  function parseJump(jump, currentLabel) {
+    const s = String(jump || "").replace(/\s+/g, "");
+    if (!s) return null;
+
+    // accept "C→B" or "C->B"
+    const m = s.match(/^([A-G])(?:→|->)([A-G])$/i);
+    if (!m) return { before: currentLabel || null, after: null, text: s.toUpperCase() };
+
+    return { before: m[1].toUpperCase(), after: m[2].toUpperCase(), text: `${m[1].toUpperCase()}→${m[2].toUpperCase()}` };
+  }
+
+  function renderCard(c, currentLabel) {
     const title = escapeHtml(c.title || "Maatregel");
+
+    // HARD enforce bullets <= 5 woorden in UI (ook als model toch langer schrijft)
     const bullets = Array.isArray(c.bullets) ? c.bullets.slice(0, 3) : [];
-    const investment = String(c.indicative_cost || "€—");
-    const savingMonthly = normalizeMonthlySaving(String(c.indicative_saving || ""));
-    const uplift = String(c.indicative_value_uplift || "");
+    const bulletsShort = bullets.map((b) => shortenWords(b, 5));
+
+    const investment = compactMoney(String(c.indicative_cost || "€—"));
+    const savingMonthly = compactMoney(String(c.indicative_saving || "")) || "—";
+    const uplift = compactUplift(String(c.indicative_value_uplift || "")) || "—";
 
     const icon = iconSvgForTitle(c.title || "");
 
+    const jump = parseJump(c.label_jump, currentLabel);
+    const jumpText = jump?.text || "";
+    const afterColor = jump?.after ? labelColor(jump.after) : (currentLabel ? labelColor(currentLabel) : "#9aa0a6");
+
     return `
       <div class="card">
-        <div class="cardTop">
-          <div class="iconWrap" aria-hidden="true">${icon}</div>
-          <h3>${title}</h3>
+        <div class="cardHeader">
+          <div class="leftHead">
+            <div class="iconWrap" aria-hidden="true">${icon}</div>
+            <h3 class="cardTitle">${title}</h3>
+          </div>
+          <div class="jumpPill" title="Indicatieve labelsprong">
+            <span class="jumpDot" style="background:${escapeHtml(afterColor)}"></span>
+            <span>${escapeHtml(jumpText || "—")}</span>
+          </div>
         </div>
 
         <ul class="bullets">
-          ${bullets.map((b) => `<li>${escapeHtml(shorten(b, 90))}</li>`).join("")}
+          ${bulletsShort.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
         </ul>
 
         <div class="kpis">
           <div class="kpi">
-            <div class="kpiLabel">${miniIcon("€")} Investering</div>
-            <div class="kpiValue">${escapeHtml(investment)}</div>
+            <div class="kpiLabel"><span class="kpiIcon">€</span>Investering</div>
+            <div class="kpiValue" title="${escapeHtml(investment)}">${escapeHtml(investment)}</div>
           </div>
           <div class="kpi">
-            <div class="kpiLabel">${miniIcon("↘")} Besparing p/m</div>
-            <div class="kpiValue">${escapeHtml(savingMonthly || "—")}</div>
+            <div class="kpiLabel"><span class="kpiIcon">↘</span>Besparing p/m</div>
+            <div class="kpiValue" title="${escapeHtml(savingMonthly)}">${escapeHtml(savingMonthly)}</div>
           </div>
           <div class="kpi">
-            <div class="kpiLabel">${miniIcon("▲")} Waardestijging</div>
-            <div class="kpiValue">${escapeHtml(uplift || "—")}</div>
+            <div class="kpiLabel"><span class="kpiIcon">▲</span>Waardestijging</div>
+            <div class="kpiValue" title="${escapeHtml(uplift)}">${escapeHtml(uplift)}</div>
           </div>
         </div>
       </div>
     `;
   }
 
-  function miniIcon(ch) {
-    return `<span style="display:inline-flex; width:16px; height:16px; align-items:center; justify-content:center; border-radius:6px; background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.06); font-size:11px; font-weight:900;">${escapeHtml(ch)}</span>`;
+  function shortenWords(text, maxWords) {
+    const words = String(text ?? "").trim().split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) return words.join(" ");
+    return words.slice(0, maxWords).join(" ");
   }
 
-  function normalizeMonthlySaving(v) {
-    const s = String(v || "").trim();
-    if (!s) return "";
-    const lower = s.toLowerCase();
-    if (lower.includes("p/m") || lower.includes("per maand") || lower.includes("maand")) return s;
-
-    if (lower.includes("jaar")) {
-      const nums = extractNumbers(s);
-      if (nums.length === 2) return `€${Math.round(nums[0] / 12)}–€${Math.round(nums[1] / 12)}`;
-      if (nums.length === 1) return `€${Math.round(nums[0] / 12)}`;
-    }
-    return s;
+  function compactMoney(s) {
+    const v = String(s || "").trim();
+    if (!v) return "";
+    // remove spaces that cause ugly wraps
+    return v.replace(/\s+/g, "");
   }
 
-  function extractNumbers(text) {
-    const matches = [...String(text).matchAll(/(\d[\d\.\,]*)/g)].map((m) => m[1]);
-    return matches
-      .map((raw) => Number(raw.replace(/\./g, "").replace(/,/g, ".")))
-      .filter((n) => Number.isFinite(n) && n > 0)
-      .slice(0, 2);
+  function compactUplift(s) {
+    const v = String(s || "").trim();
+    if (!v) return "";
+    // keep spaces inside parentheses ok, but remove double spaces
+    return v.replace(/\s{2,}/g, " ");
   }
 
   function iconSvgForTitle(title) {
@@ -396,7 +480,7 @@
   function svgBase(pathD) {
     return `
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        xmlns="http://www.w3.org/2000/svg" style="color: var(--hlw-heading);">
+        xmlns="http://www.w3.org/2000/svg" style="color: rgba(0,0,0,.80);">
         <path d="${pathD}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `;
@@ -407,12 +491,6 @@
   function svgWindow() { return svgBase("M6 4h12v16H6V4Zm6 0v16M6 12h12"); }
   function svgSeal() { return svgBase("M4 12h8m0 0 4-6m-4 6 4 6m4-6h-2"); }
   function svgInsulation() { return svgBase("M4 12l4-4 4 4 4-4 4 4-4 4-4-4-4 4-4-4Z"); }
-
-  function shorten(s, max) {
-    const str = String(s ?? "").trim();
-    if (str.length <= max) return str;
-    return str.slice(0, max - 1).trim() + "…";
-  }
 
   function escapeHtml(s) {
     return String(s ?? "")
