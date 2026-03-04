@@ -3,6 +3,7 @@ import { LRUCache } from "lru-cache";
 import { parseHuislijnUrl } from "../utils/parseHuislijnUrl.js";
 import { bagLookupAddress } from "../services/bag.js";
 import { epGetEnergyLabel } from "../services/epOnline.js";
+import { fetchHuislijnListingData } from "../services/listing.js";
 import { openaiGenerateCards } from "../services/openai.js";
 import { getSchemaDebug } from "../services/openaiSchema.js";
 
@@ -38,7 +39,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// Handy: check what code is running on Render
+// handy: check what's running
 router.get("/version", (_req, res) => {
   res.json({
     service: "huislijn-duurzaam-widget",
@@ -51,6 +52,7 @@ router.get("/version", (_req, res) => {
 
 router.get("/cards", async (req, res) => {
   const debug = req.query.debug === "1";
+  const noCache = debug || req.query.nocache === "1";
 
   try {
     const url = req.query.url;
@@ -59,13 +61,17 @@ router.get("/cards", async (req, res) => {
     }
 
     const parsed = parseHuislijnUrl(url);
-    const cacheKey = `${parsed.street}|${parsed.houseNumberRaw}|${parsed.place || ""}`;
+    const cacheKey = `${parsed.listingId || ""}|${parsed.street}|${parsed.houseNumberRaw}|${parsed.place || ""}`;
 
-    const cached = cache.get(cacheKey);
-    if (cached) return res.json({ ...cached, cached: true });
+    if (!noCache) {
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json({ ...cached, cached: true });
+    }
 
+    // 1) BAG lookup -> postcode + VBO-id
     const bag = await bagLookupAddress(parsed);
 
+    // 2) EP-online label + building info
     const energyLabel = await epGetEnergyLabel({
       vboId: bag?.adresseerbaarObjectIdentificatie,
       postcode: bag?.postcode,
@@ -74,6 +80,21 @@ router.get("/cards", async (req, res) => {
       huisnummertoevoeging: bag?.huisnummertoevoeging
     });
 
+    // 3) Listing scrape (best-effort)
+    let listing = null;
+    try {
+      listing = await fetchHuislijnListingData(url);
+    } catch (e) {
+      listing = {
+        url,
+        askingPriceEur: null,
+        hasSolarPanels: null,
+        solarPanelsCount: null,
+        error: String(e?.message || e)
+      };
+    }
+
+    // 4) OpenAI cards
     const cards = await openaiGenerateCards({
       address: {
         street: bag?.openbareRuimteNaam || parsed.street,
@@ -84,13 +105,15 @@ router.get("/cards", async (req, res) => {
         place: bag?.woonplaatsNaam || parsed.place || null
       },
       bag,
-      energyLabel
+      energyLabel,
+      listing
     });
 
     const payload = {
       addressParsedFromUrl: parsed,
       bag,
       energyLabel,
+      listing,
       cards,
       generatedAt: new Date().toISOString(),
       ...(debug ? { debug: { schemaDebug: getSchemaDebug() } } : {})
@@ -100,8 +123,6 @@ router.get("/cards", async (req, res) => {
     res.json(payload);
   } catch (err) {
     console.error(err);
-
-    // return extra debug info only when debug=1
     res.status(500).json({
       error: "Failed to generate cards",
       detail: String(err?.message || err),
