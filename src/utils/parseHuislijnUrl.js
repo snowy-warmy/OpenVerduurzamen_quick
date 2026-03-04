@@ -3,9 +3,12 @@ import { slugToName, parseHouseNumber } from "./text.js";
 export function parseHuislijnUrl(inputUrl) {
   const u = new URL(inputUrl);
   const parts = u.pathname.split("/").filter(Boolean);
-  const last = parts[parts.length - 1] || "";
 
-  // last slug example: vogelzand-4202b-julianadorp
+  // voorbeeld: .../4350417/vogelzand-4202b-julianadorp
+  const maybeId = parts[parts.length - 2];
+  const listingId = /^\d+$/.test(maybeId || "") ? maybeId : null;
+
+  const last = parts[parts.length - 1] || "";
   const slugParts = last.split("-").filter(Boolean);
 
   const idx = slugParts.findIndex((p) => /^\d/.test(p));
@@ -24,6 +27,7 @@ export function parseHuislijnUrl(inputUrl) {
 
   return {
     rawUrl: inputUrl,
+    listingId,
     slug: last,
     street,
     place,
