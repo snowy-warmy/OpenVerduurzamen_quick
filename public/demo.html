@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Widget demo</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+      .row { display:flex; gap:10px; flex-wrap:wrap; }
+      input { flex:1; min-width: 360px; padding: 10px 12px; border:1px solid rgba(0,0,0,.2); border-radius:10px; }
+      button { padding: 10px 12px; border:1px solid rgba(0,0,0,.2); border-radius:10px; background:#fff; cursor:pointer; }
+      #huislijn-duurzaamheid-widget { margin-top: 18px; }
+    </style>
+  </head>
+  <body>
+    <h1>Widget demo</h1>
+
+    <div class="row">
+      <input id="u" value="https://www.huislijn.nl/koopwoning/nederland/noord-holland/4350417/vogelzand-4202b-julianadorp" />
+      <button id="load">Laad widget</button>
+    </div>
+
+    <div id="huislijn-duurzaamheid-widget"></div>
+
+    <script>
+      const apiBase = location.origin;
+
+      function loadWidget(url) {
+        // remove previous script if any
+        const old = document.getElementById("hlw-script");
+        if (old) old.remove();
+
+        const s = document.createElement("script");
+        s.id = "hlw-script";
+        s.src = apiBase + "/widget.js";
+        s.setAttribute("data-target", "#huislijn-duurzaamheid-widget");
+        s.setAttribute("data-url", url); // <- override
+        document.body.appendChild(s);
+      }
+
+      document.getElementById("load").addEventListener("click", () => {
+        loadWidget(document.getElementById("u").value.trim());
+      });
+
+      // auto load on open
+      loadWidget(document.getElementById("u").value.trim());
+    </script>
+  </body>
+</html>
