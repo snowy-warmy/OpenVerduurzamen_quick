@@ -23,14 +23,17 @@ export async function openaiGenerateCards({ address, bag, energyLabel, listing }
   const resp = await client.responses.create({
     model,
     instructions:
-      "Je bent een Nederlandse verduurzamings-assistent voor woningzoekers. " +
-      "Maak precies 3 compacte kaartjes met concrete, realistische verduurzamingsacties. " +
-      "Gebruik ALLE context: energielabel + gebouwtype + bouwjaar + m² + zonnepanelen + vraagprijs (als beschikbaar). " +
-      "Als zonnepanelen al aanwezig zijn: géén 'plaats zonnepanelen'-kaart; focus op optimalisatie of andere maatregelen. " +
-      "Geef per kaartje altijd indicative_cost, indicative_saving en indicative_value_uplift. " +
-      "Als je het niet weet: zet een lege string. " +
-      "indicative_value_uplift is een bandbreedte (bijv. '0–1%' of '1–3%') en mag conservatief zijn. " +
-      "Wees praktisch, kort en zonder harde garanties. " +
+      "Je maakt 3 verduurzamingskaartjes voor woningzoekers (NL). " +
+      "Doel: super compact, herkenbare hoofdmaatregelen (bijv. HR++ glas, warmtepomp, zonnepanelen, kierdichting, dak/vloer/spouwisolatie). " +
+      "Gebruik context: energielabel + gebouwtype + bouwjaar + m² + zonnepanelen + vraagprijs (als beschikbaar). " +
+      "Als zonnepanelen al aanwezig zijn: géén kaart 'zonnepanelen plaatsen'. " +
+      "Tekstregels kort houden. Bullets: maximaal 2–3 korte punten. " +
+      "BELANGRIJK FORMATS:\n" +
+      "- indicative_cost: altijd een investering als bandbreedte, bv. '€3.000–€6.000'\n" +
+      "- indicative_saving: altijd MAANDELIJKSE besparing, zonder '/jaar', bv. '€25–€60'\n" +
+      "- indicative_value_uplift: conservatieve waardestijging, bv. '€5k–€15k (~1–3%)' of leeg als onbekend\n" +
+      "Noem de vraagprijs niet letterlijk in de tekst (alleen gebruiken voor uplift). " +
+      "Geen harde garanties, wel realistische bandbreedtes. " +
       `Schema versie: ${OPENAI_SCHEMA_VERSION}.`,
     input: [
       {
@@ -39,7 +42,7 @@ export async function openaiGenerateCards({ address, bag, energyLabel, listing }
           {
             type: "input_text",
             text:
-              "Genereer 3 verduurzamingskaartjes voor deze woningcontext (JSON volgens schema). Context:\n" +
+              "Genereer 3 kaartjes (JSON volgens schema). Context:\n" +
               JSON.stringify(prompt, null, 2)
           }
         ]
