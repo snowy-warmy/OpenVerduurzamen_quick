@@ -13,10 +13,32 @@ function renderCards(payload) {
   const cardsWrap = $("cards");
   const cards = payload?.cards?.cards || [];
   const disclaimer = payload?.cards?.disclaimer || "";
+
   const label = payload?.energyLabel?.label;
+  const building = payload?.energyLabel?.building || {};
+  const listing = payload?.listing || {};
 
   let html = "";
-  html += `<div style="margin-bottom:10px;">Energielabel: <span class="pill">${escapeHtml(label || "onbekend")}</span></div>`;
+  html += `<div style="display:grid; gap:8px; margin-bottom:12px;">`;
+
+  html += `<div>Energielabel: <span class="pill">${escapeHtml(label || "onbekend")}</span></div>`;
+
+  const facts = [];
+  if (building?.gebouwtype) facts.push(`Type: ${building.gebouwtype}`);
+  if (building?.bouwjaar) facts.push(`Bouwjaar: ${building.bouwjaar}`);
+  if (building?.gebruiksoppervlakteThermischeZone)
+    facts.push(`Thermische m²: ${building.gebruiksoppervlakteThermischeZone}`);
+  if (listing?.askingPriceEur) facts.push(`Vraagprijs: €${listing.askingPriceEur.toLocaleString("nl-NL")}`);
+
+  const pvCount = listing?.solarPanelsCount ?? building?.pvAantal ?? null;
+  const pvYes = listing?.hasSolarPanels === true || Number.isFinite(pvCount);
+  if (pvYes) facts.push(`Zonnepanelen: ${pvCount ? pvCount : "aanwezig"}`);
+
+  if (facts.length) {
+    html += `<div style="color:rgba(0,0,0,.65); font-size:12px;">${facts.map(escapeHtml).join(" • ")}</div>`;
+  }
+
+  html += `</div>`;
 
   if (!cards.length) {
     html += `<div class="bad">Geen kaartjes ontvangen.</div>`;
@@ -27,6 +49,7 @@ function renderCards(payload) {
         const meta = [];
         if (c.indicative_cost) meta.push(`Kosten: ${c.indicative_cost}`);
         if (c.indicative_saving) meta.push(`Besparing: ${c.indicative_saving}`);
+        if (c.indicative_value_uplift) meta.push(`Waarde: ${c.indicative_value_uplift}`);
 
         return `
         <div style="border:1px solid rgba(0,0,0,.12); border-radius:12px; padding:12px;">
@@ -37,14 +60,10 @@ function renderCards(payload) {
           </ul>
           ${
             meta.length
-              ? `<div style="color:rgba(0,0,0,.65); font-size:12px;">${meta
-                  .map(escapeHtml)
-                  .join(" • ")}</div>`
+              ? `<div style="color:rgba(0,0,0,.65); font-size:12px;">${meta.map(escapeHtml).join(" • ")}</div>`
               : ""
           }
-          <div style="margin-top:8px; font-weight:800; font-size:12px;">${escapeHtml(
-            c.cta || ""
-          )}</div>
+          <div style="margin-top:8px; font-weight:800; font-size:12px;">${escapeHtml(c.cta || "")}</div>
         </div>
       `;
       })
@@ -53,9 +72,7 @@ function renderCards(payload) {
   }
 
   if (disclaimer) {
-    html += `<div style="margin-top:10px; color:rgba(0,0,0,.65); font-size:12px;">${escapeHtml(
-      disclaimer
-    )}</div>`;
+    html += `<div style="margin-top:10px; color:rgba(0,0,0,.65); font-size:12px;">${escapeHtml(disclaimer)}</div>`;
   }
 
   cardsWrap.innerHTML = html;
@@ -84,9 +101,8 @@ async function run() {
   $("cards").innerHTML = "";
 
   try {
-    // debug=1 zodat backend extra info teruggeeft + ts om eventuele caches te vermijden
     const r = await fetch(
-      `/api/cards?url=${encodeURIComponent(url)}&debug=1&ts=${Date.now()}`
+      `/api/cards?url=${encodeURIComponent(url)}&debug=1&nocache=1&ts=${Date.now()}`
     );
     const j = await r.json();
 
