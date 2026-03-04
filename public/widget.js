@@ -3,6 +3,10 @@
   const apiBase = script?.getAttribute("data-api-base") || new URL(script.src).origin;
   const targetSelector = script?.getAttribute("data-target") || "#huislijn-duurzaamheid-widget";
 
+  // Optional for demo/testing
+  const overrideUrl = script?.getAttribute("data-url"); // Huislijn URL override
+  const debugMode = script?.getAttribute("data-debug") === "1"; // show detail + call debug/nocache
+
   // Host element
   let host = document.querySelector(targetSelector);
   if (!host) {
@@ -27,7 +31,8 @@
     // ignore
   }
 
-  const shadow = host.attachShadow({ mode: "open" });
+  // IMPORTANT: reuse existing shadowRoot (demo re-inject), otherwise attachShadow crashes
+  const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
 
   shadow.innerHTML = `
     <style>
@@ -221,7 +226,6 @@
         padding: 6px 0;
       }
 
-      /* Responsive */
       @media (max-width: 900px){
         .container{ padding: 14px; }
         .grid{ grid-template-columns: 1fr; }
@@ -264,10 +268,23 @@
   const body = shadow.getElementById("hlw-body");
   const footer = shadow.getElementById("hlw-footer");
 
-  fetch(`${apiBase}/api/cards?url=${encodeURIComponent(window.location.href)}`)
+  // Use overrideUrl for demo, otherwise actual page URL for embed
+  const pageUrl = overrideUrl || window.location.href;
+
+  const qs = new URLSearchParams({ url: pageUrl });
+  if (debugMode) {
+    qs.set("debug", "1");
+    qs.set("nocache", "1");
+    qs.set("ts", String(Date.now()));
+  }
+
+  fetch(`${apiBase}/api/cards?${qs.toString()}`)
     .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
     .then(({ ok, j }) => {
-      if (!ok) throw new Error(j?.error || "API error");
+      if (!ok) {
+        const detail = debugMode ? (j?.detail || j?.error || "API error") : (j?.error || "API error");
+        throw new Error(detail);
+      }
 
       const label = (j?.energyLabel?.label || "").toUpperCase() || null;
       setEnergyLabelPill(label);
@@ -275,11 +292,7 @@
       const cards = j?.cards?.cards || [];
       const disclaimer = j?.cards?.disclaimer || "";
 
-      body.innerHTML = `
-        <div class="grid">
-          ${cards.map((c) => renderCard(c)).join("")}
-        </div>
-      `;
+      body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c)).join("")}</div>`;
 
       if (disclaimer) {
         footer.style.display = "block";
@@ -297,31 +310,21 @@
       dot.style.background = "#9aa0a6";
       return;
     }
-
     pillText.textContent = `Energielabel: ${label}`;
     dot.style.background = labelColor(label);
   }
 
   function labelColor(label) {
-    // Simple A–G scale
-    const map = {
-      A: "#1aa058",
-      B: "#53b83a",
-      C: "#b7c900",
-      D: "#f1b600",
-      E: "#f08a00",
-      F: "#e85b3a",
-      G: "#d93025"
-    };
+    const map = { A: "#1aa058", B: "#53b83a", C: "#b7c900", D: "#f1b600", E: "#f08a00", F: "#e85b3a", G: "#d93025" };
     return map[label] || "#9aa0a6";
   }
 
   function renderCard(c) {
     const title = escapeHtml(c.title || "Maatregel");
     const bullets = Array.isArray(c.bullets) ? c.bullets.slice(0, 3) : [];
-    const investment = formatMoneyLine(c.indicative_cost, "€—");
-    const savingMonthly = normalizeMonthlySaving(c.indicative_saving);
-    const uplift = formatMoneyLine(c.indicative_value_uplift, "");
+    const investment = String(c.indicative_cost || "€—");
+    const savingMonthly = normalizeMonthlySaving(String(c.indicative_saving || ""));
+    const uplift = String(c.indicative_value_uplift || "");
 
     const icon = iconSvgForTitle(c.title || "");
 
@@ -358,58 +361,35 @@
     return `<span style="display:inline-flex; width:16px; height:16px; align-items:center; justify-content:center; border-radius:6px; background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.06); font-size:11px; font-weight:900;">${escapeHtml(ch)}</span>`;
   }
 
-  function formatMoneyLine(s, fallback) {
-    const v = String(s ?? "").trim();
-    if (!v) return fallback;
-    return v;
-  }
+  function normalizeMonthlySaving(v) {
+    const s = String(v || "").trim();
+    if (!s) return "";
+    const lower = s.toLowerCase();
+    if (lower.includes("p/m") || lower.includes("per maand") || lower.includes("maand")) return s;
 
-  // If model still returns /jaar, convert best-effort to /mnd
-  function normalizeMonthlySaving(s) {
-    const v = String(s ?? "").trim();
-    if (!v) return "";
-
-    const lower = v.toLowerCase();
-    if (lower.includes("/m") || lower.includes("p/m") || lower.includes("per maand") || lower.includes("maand")) {
-      return v;
-    }
-
-    // Try: "€200–€600/jaar" or "€200 - €600 per jaar"
     if (lower.includes("jaar")) {
-      const nums = extractEuroNumbers(v);
-      if (nums.length === 2) {
-        const a = Math.round(nums[0] / 12);
-        const b = Math.round(nums[1] / 12);
-        return `€${a}–€${b}`;
-      }
-      if (nums.length === 1) {
-        const a = Math.round(nums[0] / 12);
-        return `€${a}`;
-      }
+      const nums = extractNumbers(s);
+      if (nums.length === 2) return `€${Math.round(nums[0] / 12)}–€${Math.round(nums[1] / 12)}`;
+      if (nums.length === 1) return `€${Math.round(nums[0] / 12)}`;
     }
-
-    return v;
+    return s;
   }
 
-  function extractEuroNumbers(text) {
-    // find things like 1.200 or 1200 or 1,200
+  function extractNumbers(text) {
     const matches = [...String(text).matchAll(/(\d[\d\.\,]*)/g)].map((m) => m[1]);
-    const nums = matches
+    return matches
       .map((raw) => Number(raw.replace(/\./g, "").replace(/,/g, ".")))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    // Keep first 2 meaningful
-    return nums.slice(0, 2);
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .slice(0, 2);
   }
 
   function iconSvgForTitle(title) {
     const t = String(title || "").toLowerCase();
-
     if (t.includes("warmtepomp")) return svgHeatPump();
     if (t.includes("hr++") || t.includes("glas")) return svgWindow();
     if (t.includes("zonne")) return svgSolar();
     if (t.includes("kier") || t.includes("tocht")) return svgSeal();
     if (t.includes("dak") || t.includes("vloer") || t.includes("spouw") || t.includes("isol")) return svgInsulation();
-
     return svgLeaf();
   }
 
@@ -421,25 +401,12 @@
       </svg>
     `;
   }
-
-  function svgLeaf() {
-    return svgBase("M20 4c-6 1-10 5-11 11 6-1 10-5 11-11ZM9 15c-2 0-5 1-6 5 4-1 6-3 6-5Z");
-  }
-  function svgSolar() {
-    return svgBase("M4 6h16M7 10h10M6 14h12M8 18h8M6 6l3 12M18 6l-3 12");
-  }
-  function svgHeatPump() {
-    return svgBase("M6 7h12v10H6V7Zm3 2v6m6-6v6M9 12h6");
-  }
-  function svgWindow() {
-    return svgBase("M6 4h12v16H6V4Zm6 0v16M6 12h12");
-  }
-  function svgSeal() {
-    return svgBase("M4 12h8m0 0 4-6m-4 6 4 6m4-6h-2");
-  }
-  function svgInsulation() {
-    return svgBase("M4 12l4-4 4 4 4-4 4 4-4 4-4-4-4 4-4-4Z");
-  }
+  function svgLeaf() { return svgBase("M20 4c-6 1-10 5-11 11 6-1 10-5 11-11ZM9 15c-2 0-5 1-6 5 4-1 6-3 6-5Z"); }
+  function svgSolar() { return svgBase("M4 6h16M7 10h10M6 14h12M8 18h8M6 6l3 12M18 6l-3 12"); }
+  function svgHeatPump() { return svgBase("M6 7h12v10H6V7Zm3 2v6m6-6v6M9 12h6"); }
+  function svgWindow() { return svgBase("M6 4h12v16H6V4Zm6 0v16M6 12h12"); }
+  function svgSeal() { return svgBase("M4 12h8m0 0 4-6m-4 6 4 6m4-6h-2"); }
+  function svgInsulation() { return svgBase("M4 12l4-4 4 4 4-4 4 4-4 4-4-4-4 4-4-4Z"); }
 
   function shorten(s, max) {
     const str = String(s ?? "").trim();
