@@ -15,7 +15,7 @@ const cache = new LRUCache({
   ttl: 1000 * 60 * 60 * 24 // 24h
 });
 
-// Cache listing facts separately (price/pv can change; and web_search is slower)
+// Cache listing facts separately (price/pv can change; web_search is slower)
 const listingCache = new LRUCache({
   max: 1000,
   ttl: 1000 * 60 * 60 * 6 // 6h
@@ -52,7 +52,8 @@ router.get("/version", (_req, res) => {
     schemaDebug: getSchemaDebug(),
     node: process.version,
     renderCommit: process.env.RENDER_GIT_COMMIT || null,
-    renderServiceId: process.env.RENDER_SERVICE_ID || null
+    renderServiceId: process.env.RENDER_SERVICE_ID || null,
+    websearchEnabled: ((process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true")
   });
 });
 
@@ -62,8 +63,25 @@ router.get("/cards", async (req, res) => {
   const fast = req.query.fast === "1";
   const enrich = req.query.enrich === "1";
 
-  // Web search feature flag (default true)
   const websearchEnabled = (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true";
+
+  // timings + stage debug
+  const timings = {};
+  let stage = "start";
+
+  async function timed(name, fn) {
+    const t0 = Date.now();
+    stage = name;
+    try {
+      const out = await fn();
+      timings[name] = Date.now() - t0;
+      return out;
+    } catch (e) {
+      timings[name] = Date.now() - t0;
+      e._stage = name;
+      throw e;
+    }
+  }
 
   try {
     const url = req.query.url;
@@ -71,51 +89,72 @@ router.get("/cards", async (req, res) => {
       return res.status(400).json({ error: "Missing ?url=" });
     }
 
-    const parsed = parseHuislijnUrl(url);
+    const parsed = timed("parse_url", async () => parseHuislijnUrl(url));
+    const parsedResolved = await parsed;
 
-    const cacheKey = `${parsed.listingId || ""}|${parsed.street}|${parsed.houseNumberRaw}|${parsed.place || ""}`;
+    const cacheKey = `${parsedResolved.listingId || ""}|${parsedResolved.street}|${parsedResolved.houseNumberRaw}|${parsedResolved.place || ""}`;
 
     if (!noCache) {
       const cached = cache.get(cacheKey);
       if (cached) return res.json({ ...cached, cached: true });
     }
 
-    // 1) BAG lookup -> postcode + VBO-id
-    const bag = await bagLookupAddress(parsed);
+    // 1) BAG lookup (non-fatal: if it fails, continue with parsed URL)
+    let bag = null;
+    try {
+      bag = await timed("bag", async () => bagLookupAddress(parsedResolved));
+    } catch (e) {
+      bag = null;
+      if (debug) {
+        // keep going; include error in debug later
+        timings.bag_error = String(e?.message || e);
+        timings.bag_error_stage = e?._stage || "bag";
+      }
+    }
 
-    // 2) EP-online label + building info
-    const energyLabel = await epGetEnergyLabel({
-      vboId: bag?.adresseerbaarObjectIdentificatie,
-      postcode: bag?.postcode,
-      huisnummer: bag?.huisnummer,
-      huisletter: bag?.huisletter,
-      huisnummertoevoeging: bag?.huisnummertoevoeging
-    });
+    // 2) EP-online (non-fatal: if it fails, continue without label)
+    let energyLabel = null;
+    try {
+      energyLabel = await timed("ep_online", async () =>
+        epGetEnergyLabel({
+          vboId: bag?.adresseerbaarObjectIdentificatie,
+          postcode: bag?.postcode,
+          huisnummer: bag?.huisnummer,
+          huisletter: bag?.huisletter,
+          huisnummertoevoeging: bag?.huisnummertoevoeging
+        })
+      );
+    } catch (e) {
+      energyLabel = null;
+      if (debug) {
+        timings.ep_error = String(e?.message || e);
+        timings.ep_error_stage = e?._stage || "ep_online";
+      }
+    }
 
-    // 3) Listing facts via OpenAI web_search (optional, can be slow)
-    const listingKey = parsed.listingId ? `id:${parsed.listingId}` : `url:${url}`;
-
+    // 3) Listing facts (web_search) - optional
+    const listingKey = parsedResolved.listingId ? `id:${parsedResolved.listingId}` : `url:${url}`;
     let listing = null;
 
-    // Prefer cached listing facts
     if (!noCache) listing = listingCache.get(listingKey) || null;
 
-    // Only run websearch when (enrich=1) and enabled
+    // Only do websearch on enrich=1 and enabled
     if (!listing && enrich && websearchEnabled) {
       try {
-        const facts = await getListingFactsViaOpenAIWebSearch({
-          url,
-          listingId: parsed.listingId,
-          addressHint: `${parsed.street} ${parsed.houseNumberRaw}${parsed.place ? ", " + parsed.place : ""}`
-        });
+        const facts = await timed("websearch_listing", async () =>
+          getListingFactsViaOpenAIWebSearch({
+            url,
+            listingId: parsedResolved.listingId,
+            addressHint: `${parsedResolved.street} ${parsedResolved.houseNumberRaw}${parsedResolved.place ? ", " + parsedResolved.place : ""}`
+          })
+        );
 
         listing = {
           url,
           askingPriceEur: facts.askingPriceEur ?? null,
           hasSolarPanels: facts.hasSolarPanels ?? null,
           solarPanelsCount: facts.solarPanelsCount ?? null,
-          notes: facts.notes ?? "",
-          sources: Array.isArray(facts.sources) ? facts.sources : []
+          notes: facts.notes ?? ""
         };
 
         listingCache.set(listingKey, listing);
@@ -126,78 +165,57 @@ router.get("/cards", async (req, res) => {
           hasSolarPanels: null,
           solarPanelsCount: null,
           notes: "web_search failed",
-          sources: [],
           error: String(e?.message || e)
         };
       }
     }
 
-    // Fast path: do NOT block on listing facts
+    // Fast path: never block on listing facts
     if (fast && !listing) {
-      listing = {
-        url,
-        askingPriceEur: null,
-        hasSolarPanels: null,
-        solarPanelsCount: null,
-        source: websearchEnabled ? "fast" : "disabled"
-      };
+      listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: "fast" };
     }
 
-    // If still null (not fast, not enrich, or disabled), use empty listing
+    // If websearch disabled OR not enriching, keep listing empty
     if (!listing) {
-      listing = {
-        url,
-        askingPriceEur: null,
-        hasSolarPanels: null,
-        solarPanelsCount: null,
-        source: websearchEnabled ? "none" : "disabled"
-      };
+      listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: websearchEnabled ? "none" : "disabled" };
     }
 
-    // 4) OpenAI cards
-    const cards = await openaiGenerateCards({
-      address: {
-        street: bag?.openbareRuimteNaam || parsed.street,
-        houseNumber: bag?.huisnummer || parsed.houseNumber,
-        houseLetter: bag?.huisletter || parsed.houseLetter,
-        houseNumberSuffix: bag?.huisnummertoevoeging || parsed.houseNumberSuffix,
-        postcode: bag?.postcode || null,
-        place: bag?.woonplaatsNaam || parsed.place || null
-      },
-      bag,
-      energyLabel,
-      // keep only fields relevant for advice
-      listing: {
-        url: listing.url,
-        askingPriceEur: listing.askingPriceEur,
-        hasSolarPanels: listing.hasSolarPanels,
-        solarPanelsCount: listing.solarPanelsCount
-      }
-    });
+    // 4) OpenAI cards (this is the ONLY fatal step by default)
+    const cards = await timed("openai_cards", async () =>
+      openaiGenerateCards({
+        address: {
+          street: bag?.openbareRuimteNaam || parsedResolved.street,
+          houseNumber: bag?.huisnummer || parsedResolved.houseNumber,
+          houseLetter: bag?.huisletter || parsedResolved.houseLetter,
+          houseNumberSuffix: bag?.huisnummertoevoeging || parsedResolved.houseNumberSuffix,
+          postcode: bag?.postcode || null,
+          place: bag?.woonplaatsNaam || parsedResolved.place || null
+        },
+        bag,
+        energyLabel,
+        listing: {
+          url: listing.url,
+          askingPriceEur: listing.askingPriceEur,
+          hasSolarPanels: listing.hasSolarPanels,
+          solarPanelsCount: listing.solarPanelsCount
+        }
+      })
+    );
 
     const payload = {
-      addressParsedFromUrl: parsed,
+      addressParsedFromUrl: parsedResolved,
       bag,
       energyLabel,
-      listing: {
-        url: listing.url,
-        askingPriceEur: listing.askingPriceEur,
-        hasSolarPanels: listing.hasSolarPanels,
-        solarPanelsCount: listing.solarPanelsCount,
-        source: listing.source || null
-      },
+      listing,
       cards,
       generatedAt: new Date().toISOString(),
       ...(debug
         ? {
             debug: {
               schemaDebug: getSchemaDebug(),
-              websearchEnabled,
-              fast,
-              enrich,
-              listingNotes: listing.notes || "",
-              listingSources: listing.sources || [],
-              listingError: listing.error || null
+              stage,
+              timings,
+              flags: { fast, enrich, noCache, websearchEnabled }
             }
           }
         : {})
@@ -207,6 +225,10 @@ router.get("/cards", async (req, res) => {
     res.json(payload);
   } catch (err) {
     console.error(err);
+
+    // Try to surface underlying cause (undici often puts details in err.cause)
+    const cause = err?.cause ? String(err.cause?.message || err.cause) : null;
+
     res.status(500).json({
       error: "Failed to generate cards",
       detail: String(err?.message || err),
@@ -214,6 +236,12 @@ router.get("/cards", async (req, res) => {
         ? {
             debug: {
               schemaDebug: getSchemaDebug(),
+              stage: err?._stage || stage,
+              cause,
+              timings,
+              flags: {
+                websearchEnabled: (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true"
+              },
               envPresent: {
                 OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
                 BAG_API_KEY: Boolean(process.env.BAG_API_KEY),
