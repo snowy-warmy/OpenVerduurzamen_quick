@@ -3,15 +3,22 @@ import { LRUCache } from "lru-cache";
 import { parseHuislijnUrl } from "../utils/parseHuislijnUrl.js";
 import { bagLookupAddress } from "../services/bag.js";
 import { epGetEnergyLabel } from "../services/epOnline.js";
-import { fetchHuislijnListingData } from "../services/listing.js";
 import { openaiGenerateCards } from "../services/openai.js";
 import { getSchemaDebug } from "../services/openaiSchema.js";
+import { getListingFactsViaOpenAIWebSearch } from "../services/listingFactsOpenAI.js";
 
 const router = Router();
 
+// Cache full payload (cards output etc.)
 const cache = new LRUCache({
   max: 1000,
   ttl: 1000 * 60 * 60 * 24 // 24h
+});
+
+// Cache listing facts separately (price/pv can change; and web_search is slower)
+const listingCache = new LRUCache({
+  max: 1000,
+  ttl: 1000 * 60 * 60 * 6 // 6h
 });
 
 function isAllowedOrigin(origin) {
@@ -20,7 +27,6 @@ function isAllowedOrigin(origin) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-
   return allowed.includes(origin);
 }
 
@@ -39,7 +45,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// handy: check what's running
+// Handy: check what code is running
 router.get("/version", (_req, res) => {
   res.json({
     service: "huislijn-duurzaam-widget",
@@ -53,6 +59,11 @@ router.get("/version", (_req, res) => {
 router.get("/cards", async (req, res) => {
   const debug = req.query.debug === "1";
   const noCache = debug || req.query.nocache === "1";
+  const fast = req.query.fast === "1";
+  const enrich = req.query.enrich === "1";
+
+  // Web search feature flag (default true)
+  const websearchEnabled = (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true";
 
   try {
     const url = req.query.url;
@@ -61,6 +72,7 @@ router.get("/cards", async (req, res) => {
     }
 
     const parsed = parseHuislijnUrl(url);
+
     const cacheKey = `${parsed.listingId || ""}|${parsed.street}|${parsed.houseNumberRaw}|${parsed.place || ""}`;
 
     if (!noCache) {
@@ -80,17 +92,65 @@ router.get("/cards", async (req, res) => {
       huisnummertoevoeging: bag?.huisnummertoevoeging
     });
 
-    // 3) Listing scrape (best-effort)
+    // 3) Listing facts via OpenAI web_search (optional, can be slow)
+    const listingKey = parsed.listingId ? `id:${parsed.listingId}` : `url:${url}`;
+
     let listing = null;
-    try {
-      listing = await fetchHuislijnListingData(url);
-    } catch (e) {
+
+    // Prefer cached listing facts
+    if (!noCache) listing = listingCache.get(listingKey) || null;
+
+    // Only run websearch when (enrich=1) and enabled
+    if (!listing && enrich && websearchEnabled) {
+      try {
+        const facts = await getListingFactsViaOpenAIWebSearch({
+          url,
+          listingId: parsed.listingId,
+          addressHint: `${parsed.street} ${parsed.houseNumberRaw}${parsed.place ? ", " + parsed.place : ""}`
+        });
+
+        listing = {
+          url,
+          askingPriceEur: facts.askingPriceEur ?? null,
+          hasSolarPanels: facts.hasSolarPanels ?? null,
+          solarPanelsCount: facts.solarPanelsCount ?? null,
+          notes: facts.notes ?? "",
+          sources: Array.isArray(facts.sources) ? facts.sources : []
+        };
+
+        listingCache.set(listingKey, listing);
+      } catch (e) {
+        listing = {
+          url,
+          askingPriceEur: null,
+          hasSolarPanels: null,
+          solarPanelsCount: null,
+          notes: "web_search failed",
+          sources: [],
+          error: String(e?.message || e)
+        };
+      }
+    }
+
+    // Fast path: do NOT block on listing facts
+    if (fast && !listing) {
       listing = {
         url,
         askingPriceEur: null,
         hasSolarPanels: null,
         solarPanelsCount: null,
-        error: String(e?.message || e)
+        source: websearchEnabled ? "fast" : "disabled"
+      };
+    }
+
+    // If still null (not fast, not enrich, or disabled), use empty listing
+    if (!listing) {
+      listing = {
+        url,
+        askingPriceEur: null,
+        hasSolarPanels: null,
+        solarPanelsCount: null,
+        source: websearchEnabled ? "none" : "disabled"
       };
     }
 
@@ -106,17 +166,41 @@ router.get("/cards", async (req, res) => {
       },
       bag,
       energyLabel,
-      listing
+      // keep only fields relevant for advice
+      listing: {
+        url: listing.url,
+        askingPriceEur: listing.askingPriceEur,
+        hasSolarPanels: listing.hasSolarPanels,
+        solarPanelsCount: listing.solarPanelsCount
+      }
     });
 
     const payload = {
       addressParsedFromUrl: parsed,
       bag,
       energyLabel,
-      listing,
+      listing: {
+        url: listing.url,
+        askingPriceEur: listing.askingPriceEur,
+        hasSolarPanels: listing.hasSolarPanels,
+        solarPanelsCount: listing.solarPanelsCount,
+        source: listing.source || null
+      },
       cards,
       generatedAt: new Date().toISOString(),
-      ...(debug ? { debug: { schemaDebug: getSchemaDebug() } } : {})
+      ...(debug
+        ? {
+            debug: {
+              schemaDebug: getSchemaDebug(),
+              websearchEnabled,
+              fast,
+              enrich,
+              listingNotes: listing.notes || "",
+              listingSources: listing.sources || [],
+              listingError: listing.error || null
+            }
+          }
+        : {})
     };
 
     cache.set(cacheKey, payload);
