@@ -14,319 +14,312 @@
     document.body.appendChild(host);
   }
 
-  // Pull page styling (best-effort)
+  // Best-effort match Huislijn typography/colors
   try {
     const bodyStyle = getComputedStyle(document.body);
-    const headingEl = document.querySelector("h1,h2,h3");
-    const headingColor = headingEl ? getComputedStyle(headingEl).color : bodyStyle.color;
     const linkEl = document.querySelector("a");
     const linkColor = linkEl ? getComputedStyle(linkEl).color : "#0b5fff";
 
     host.style.setProperty("--hlw-font", bodyStyle.fontFamily || "system-ui, -apple-system, Segoe UI, Roboto, Arial");
     host.style.setProperty("--hlw-text", bodyStyle.color || "#111");
-    host.style.setProperty("--hlw-heading", headingColor || "#0b4b53");
     host.style.setProperty("--hlw-accent", linkColor || "#0b5fff");
   } catch {}
 
   const shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
 
   shadow.innerHTML = `
-  <style>
-    :host{
-      --hlw-font: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      --hlw-text: #111;
-      --hlw-heading: #0b4b53;
-      --hlw-accent: #0b5fff;
+    <style>
+      :host{
+        --hlw-font: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        --hlw-text: #111;
+        --hlw-accent: #0b5fff;
 
-      --hlw-border: rgba(0,0,0,.10);
-      --hlw-muted: rgba(0,0,0,.60);
-      --hlw-soft: rgba(0,0,0,.04);
-      --hlw-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 28px rgba(0,0,0,.06);
+        --hlw-border: rgba(0,0,0,.10);
+        --hlw-muted: rgba(0,0,0,.62);
+        --hlw-soft: rgba(0,0,0,.04);
+        --hlw-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
 
-      --hlw-radius: 18px;
-      --hlw-card-radius: 16px;
+        --hlw-radius: 16px;
+        --hlw-card-radius: 14px;
 
-      font-family: var(--hlw-font);
-      color: var(--hlw-text);
-      display:block;
-    }
+        font-family: var(--hlw-font);
+        color: var(--hlw-text);
+        display:block;
+      }
 
-    .container{
-      max-width: 730px;
-      width: 100%;
-      background: #fff;
-      border: 1px solid var(--hlw-border);
-      border-radius: var(--hlw-radius);
-      box-shadow: var(--hlw-shadow);
-      padding: 18px 18px 14px;
-      box-sizing: border-box;
-    }
+      .container{
+        max-width: 730px;
+        width: 100%;
+        background: #fff;
+        border: 1px solid var(--hlw-border);
+        border-radius: var(--hlw-radius);
+        box-shadow: var(--hlw-shadow);
+        padding: 16px;
+        box-sizing: border-box;
+      }
 
-    .header{
-      display:flex;
-      justify-content: space-between;
-      align-items:flex-start;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
+      .header{
+        display:flex;
+        justify-content: space-between;
+        align-items:flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
 
-    .title{
-      margin: 0;
-      font-size: 26px;
-      font-weight: 950;
-      line-height: 1.05;
-      color: var(--hlw-text);
-      letter-spacing: -0.02em;
-    }
+      .title{
+        margin: 0;
+        font-size: 20px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+      }
 
-    .subtitle{
-      margin: 8px 0 0;
-      font-size: 16px;
-      color: var(--hlw-muted);
-      line-height: 1.25;
-      font-weight: 600;
-    }
+      .subtitle{
+        margin: 6px 0 0;
+        font-size: 13px;
+        color: var(--hlw-muted);
+        line-height: 1.3;
+        font-weight: 600;
+      }
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.12);
-      background: rgba(0,0,0,.03);
-      font-size: 16px;
-      font-weight: 900;
-      white-space: nowrap;
-    }
+      .pill{
+        display:inline-flex;
+        align-items:center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,.12);
+        background: rgba(0,0,0,.03);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
 
-    .pill .dot{
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      background: #9aa0a6;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,.65);
-    }
+      .pill .dot{
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #9aa0a6;
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,.65);
+      }
 
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
+      .grid{
+        display:grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
 
-    .card{
-      border: 1px solid rgba(0,0,0,.10);
-      border-radius: var(--hlw-card-radius);
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04);
-      padding: 14px;
-      box-sizing: border-box;
-      min-width: 0;
+      .card{
+        border: 1px solid rgba(0,0,0,.10);
+        border-radius: var(--hlw-card-radius);
+        background: #fff;
+        padding: 14px;
+        box-sizing: border-box;
+        min-width: 0;
 
-      display:flex;
-      flex-direction: column;
-      height: 100%;
-    }
+        display:flex;
+        flex-direction: column;
+        height: 100%;
+      }
 
-    .cardHeader{
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
+      .cardTop{
+        display:flex;
+        align-items:flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
 
-    .leftHead{
-      display:flex;
-      align-items:flex-start;
-      gap: 12px;
-      min-width: 0;
-    }
+      .leftHead{
+        display:flex;
+        align-items:flex-start;
+        gap: 10px;
+        min-width: 0;
+      }
 
-    .iconWrap{
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.03);
-      border: 1px solid rgba(0,0,0,.08);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex: 0 0 auto;
-    }
+      .iconWrap{
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: rgba(0,0,0,.03);
+        border: 1px solid rgba(0,0,0,.08);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex: 0 0 auto;
+      }
 
-    .cardTitle{
-      margin: 0;
-      font-size: 20px;
-      font-weight: 950;
-      line-height: 1.05;
-      letter-spacing: -0.01em;
-      word-break: break-word;
-    }
+      .cardTitle{
+        margin: 0;
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
 
-    .jumpPill{
-      flex: 0 0 auto;
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(0,0,0,.03);
-      font-size: 14px;
-      font-weight: 950;
-      color: rgba(0,0,0,.75);
-      white-space: nowrap;
-    }
+        /* Fix ugly letter-by-letter breaks */
+        word-break: normal;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
 
-    .jumpDot{
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: #9aa0a6;
-    }
+      .jumpPill{
+        flex: 0 0 auto;
+        display:inline-flex;
+        align-items:center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,.10);
+        background: rgba(0,0,0,.03);
+        font-size: 11px;
+        font-weight: 900;
+        color: rgba(0,0,0,.70);
+        white-space: nowrap;
+      }
 
-    .bullets{
-      margin: 0 0 12px;
-      padding-left: 18px;
-      color: rgba(0,0,0,.62);
-      font-size: 16px;
-      line-height: 1.25;
-      font-weight: 600;
-    }
+      .jumpDot{
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: #9aa0a6;
+      }
 
-    .bullets li{ margin: 8px 0; }
+      .bullets{
+        margin: 0 0 12px;
+        padding-left: 18px;
+        color: var(--hlw-muted);
+        font-size: 13px;
+        line-height: 1.35;
+        font-weight: 600;
+      }
+      .bullets li{ margin: 6px 0; }
 
-    /* KPI row pinned to bottom */
-    .kpis{
-      margin-top: auto;
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(0,0,0,.08);
-    }
+      /* KPI row pinned bottom, no overlap */
+      .kpis{
+        margin-top: auto;
+        display:grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(0,0,0,.08);
+      }
 
-    .kpi{
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(0,0,0,.02);
-      border-radius: 14px;
-      padding: 10px 10px 12px;
-      min-width: 0;
-    }
+      .kpi{
+        border: 1px solid rgba(0,0,0,.10);
+        background: rgba(0,0,0,.02);
+        border-radius: 12px;
+        padding: 10px;
+        min-width: 0;
+      }
 
-    .kpiLabel{
-      display:flex;
-      align-items:center;
-      gap: 8px;
-      font-size: 14px;
-      color: rgba(0,0,0,.58);
-      font-weight: 900;
-      margin-bottom: 6px;
-      white-space: nowrap;
-    }
+      .kpiLabel{
+        font-size: 11px;
+        color: rgba(0,0,0,.58);
+        font-weight: 800;
+        margin: 0 0 6px;
+        display:flex;
+        align-items:center;
+        gap: 6px;
+        white-space: nowrap;
+      }
 
-    .kpiIcon{
-      width: 22px;
-      height: 22px;
-      border-radius: 8px;
-      background: rgba(0,0,0,.05);
-      border: 1px solid rgba(0,0,0,.06);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size: 13px;
-      font-weight: 950;
-      color: rgba(0,0,0,.70);
-      flex: 0 0 auto;
-    }
+      .kpiIcon{
+        width: 18px;
+        height: 18px;
+        border-radius: 7px;
+        background: rgba(0,0,0,.05);
+        border: 1px solid rgba(0,0,0,.06);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size: 11px;
+        font-weight: 900;
+        color: rgba(0,0,0,.70);
+        flex: 0 0 auto;
+      }
 
-    .kpiValue{
-      font-size: 20px;
-      font-weight: 950;
-      letter-spacing: -0.01em;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.05;
+      .kpiValue{
+        font-size: 15px;
+        font-weight: 950;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+        font-variant-numeric: tabular-nums;
 
-      /* prevent ugly digit wrapping */
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+        /* prevent ugly wraps; allow wrap only at <wbr> */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
-    .footer{
-      margin-top: 14px;
-      font-size: 14px;
-      color: rgba(0,0,0,.55);
-      line-height: 1.25;
-      font-weight: 600;
-    }
+      .footer{
+        margin-top: 12px;
+        font-size: 12px;
+        color: rgba(0,0,0,.55);
+        line-height: 1.35;
+        font-weight: 600;
+      }
 
-    .loadingRow{
-      display:grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
+      .loadingRow{
+        display:grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .skeleton{
+        height: 210px;
+        border-radius: var(--hlw-card-radius);
+        border: 1px solid rgba(0,0,0,.10);
+        background: linear-gradient(90deg, rgba(0,0,0,.03), rgba(0,0,0,.06), rgba(0,0,0,.03));
+        background-size: 220% 100%;
+        animation: shimmer 1.1s ease-in-out infinite;
+      }
+      @keyframes shimmer{
+        0%{ background-position: 0% 0%; }
+        100%{ background-position: 220% 0%; }
+      }
 
-    .skeleton{
-      height: 260px;
-      border-radius: var(--hlw-card-radius);
-      border: 1px solid rgba(0,0,0,.10);
-      background: linear-gradient(90deg, rgba(0,0,0,.03), rgba(0,0,0,.06), rgba(0,0,0,.03));
-      background-size: 220% 100%;
-      animation: shimmer 1.1s ease-in-out infinite;
-    }
+      .error{
+        font-size: 13px;
+        color: #b00020;
+        padding: 6px 0;
+        font-weight: 700;
+      }
 
-    @keyframes shimmer{
-      0%{ background-position: 0% 0%; }
-      100%{ background-position: 220% 0%; }
-    }
+      @media (max-width: 900px){
+        .grid{ grid-template-columns: 1fr; }
+        .loadingRow{ grid-template-columns: 1fr; }
+        .kpiValue{
+          white-space: normal;   /* allow wrap on small */
+          overflow: visible;
+          text-overflow: clip;
+        }
+      }
+      @media (max-width: 520px){
+        .kpis{ grid-template-columns: 1fr; }
+      }
+    </style>
 
-    .error{
-      font-size: 14px;
-      color: #b00020;
-      padding: 8px 0;
-      font-weight: 700;
-    }
-
-    /* Responsive */
-    @media (max-width: 900px){
-      .container{ padding: 16px 14px 12px; }
-      .title{ font-size: 22px; }
-      .subtitle{ font-size: 14px; }
-      .pill{ font-size: 14px; padding: 8px 12px; }
-      .grid{ grid-template-columns: 1fr; }
-      .loadingRow{ grid-template-columns: 1fr; }
-      .kpiValue{ white-space: normal; } /* allow wrap on narrow screens */
-    }
-    @media (max-width: 520px){
-      .kpis{ grid-template-columns: 1fr; }
-      .kpiValue{ font-size: 18px; }
-    }
-  </style>
-
-  <div class="container">
-    <div class="header">
-      <div>
-        <h2 class="title">Verduurzamingsadvies</h2>
-        <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
+    <div class="container" lang="nl">
+      <div class="header">
+        <div>
+          <h2 class="title">Verduurzamingsadvies</h2>
+          <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
+        </div>
+        <div class="pill" id="hlw-pill">
+          <span class="dot" id="hlw-dot"></span>
+          <span id="hlw-pill-text">Energielabel: …</span>
+        </div>
       </div>
-      <div class="pill" id="hlw-pill">
-        <span class="dot" id="hlw-dot"></span>
-        <span id="hlw-pill-text">Energielabel: …</span>
+
+      <div id="hlw-body">
+        <div class="loadingRow">
+          <div class="skeleton"></div>
+          <div class="skeleton"></div>
+          <div class="skeleton"></div>
+        </div>
       </div>
+
+      <div class="footer" id="hlw-footer" style="display:none;"></div>
     </div>
-
-    <div id="hlw-body">
-      <div class="loadingRow">
-        <div class="skeleton"></div>
-        <div class="skeleton"></div>
-        <div class="skeleton"></div>
-      </div>
-    </div>
-
-    <div class="footer" id="hlw-footer" style="display:none;"></div>
-  </div>
   `;
 
   const pillText = shadow.getElementById("hlw-pill-text");
@@ -387,41 +380,36 @@
   function parseJump(jump, currentLabel) {
     const s = String(jump || "").replace(/\s+/g, "");
     if (!s) return null;
-
-    // accept "C→B" or "C->B"
     const m = s.match(/^([A-G])(?:→|->)([A-G])$/i);
-    if (!m) return { before: currentLabel || null, after: null, text: s.toUpperCase() };
-
-    return { before: m[1].toUpperCase(), after: m[2].toUpperCase(), text: `${m[1].toUpperCase()}→${m[2].toUpperCase()}` };
+    if (!m) return { after: currentLabel || null, text: s.toUpperCase() };
+    return { after: m[2].toUpperCase(), text: `${m[1].toUpperCase()}→${m[2].toUpperCase()}` };
   }
 
   function renderCard(c, currentLabel) {
     const title = escapeHtml(c.title || "Maatregel");
-
-    // HARD enforce bullets <= 5 woorden in UI (ook als model toch langer schrijft)
     const bullets = Array.isArray(c.bullets) ? c.bullets.slice(0, 3) : [];
-    const bulletsShort = bullets.map((b) => shortenWords(b, 5));
+    const bulletsShort = bullets.map((b) => shortenWords(b, 5)); // enforce 5 words
 
-    const investment = compactMoney(String(c.indicative_cost || "€—"));
-    const savingMonthly = compactMoney(String(c.indicative_saving || "")) || "—";
-    const uplift = compactUplift(String(c.indicative_value_uplift || "")) || "—";
+    const investment = (c.indicative_cost || "€—").toString().trim();
+    const saving = (c.indicative_saving || "—").toString().trim();
+    const uplift = (c.indicative_value_uplift || "—").toString().trim();
 
     const icon = iconSvgForTitle(c.title || "");
 
     const jump = parseJump(c.label_jump, currentLabel);
-    const jumpText = jump?.text || "";
-    const afterColor = jump?.after ? labelColor(jump.after) : (currentLabel ? labelColor(currentLabel) : "#9aa0a6");
+    const jumpText = jump?.text || "—";
+    const jumpColor = jump?.after ? labelColor(jump.after) : (currentLabel ? labelColor(currentLabel) : "#9aa0a6");
 
     return `
       <div class="card">
-        <div class="cardHeader">
+        <div class="cardTop">
           <div class="leftHead">
             <div class="iconWrap" aria-hidden="true">${icon}</div>
             <h3 class="cardTitle">${title}</h3>
           </div>
           <div class="jumpPill" title="Indicatieve labelsprong">
-            <span class="jumpDot" style="background:${escapeHtml(afterColor)}"></span>
-            <span>${escapeHtml(jumpText || "—")}</span>
+            <span class="jumpDot" style="background:${escapeHtml(jumpColor)}"></span>
+            <span>${escapeHtml(jumpText)}</span>
           </div>
         </div>
 
@@ -432,39 +420,34 @@
         <div class="kpis">
           <div class="kpi">
             <div class="kpiLabel"><span class="kpiIcon">€</span>Investering</div>
-            <div class="kpiValue" title="${escapeHtml(investment)}">${escapeHtml(investment)}</div>
+            <div class="kpiValue" title="${escapeHtml(investment)}">${formatValue(investment)}</div>
           </div>
           <div class="kpi">
             <div class="kpiLabel"><span class="kpiIcon">↘</span>Besparing p/m</div>
-            <div class="kpiValue" title="${escapeHtml(savingMonthly)}">${escapeHtml(savingMonthly)}</div>
+            <div class="kpiValue" title="${escapeHtml(saving)}">${formatValue(saving)}</div>
           </div>
           <div class="kpi">
             <div class="kpiLabel"><span class="kpiIcon">▲</span>Waardestijging</div>
-            <div class="kpiValue" title="${escapeHtml(uplift)}">${escapeHtml(uplift)}</div>
+            <div class="kpiValue" title="${escapeHtml(uplift)}">${formatValue(uplift)}</div>
           </div>
         </div>
       </div>
     `;
   }
 
+  // Allow wrap only at dashes; prevents ugly digit wrapping
+  function formatValue(text) {
+    const safe = escapeHtml(String(text ?? "").trim() || "—");
+    return safe
+      .replaceAll("–", "–<wbr>")
+      .replaceAll("-", "-<wbr>")
+      .replaceAll("—", "—");
+  }
+
   function shortenWords(text, maxWords) {
     const words = String(text ?? "").trim().split(/\s+/).filter(Boolean);
     if (words.length <= maxWords) return words.join(" ");
     return words.slice(0, maxWords).join(" ");
-  }
-
-  function compactMoney(s) {
-    const v = String(s || "").trim();
-    if (!v) return "";
-    // remove spaces that cause ugly wraps
-    return v.replace(/\s+/g, "");
-  }
-
-  function compactUplift(s) {
-    const v = String(s || "").trim();
-    if (!v) return "";
-    // keep spaces inside parentheses ok, but remove double spaces
-    return v.replace(/\s{2,}/g, " ");
   }
 
   function iconSvgForTitle(title) {
@@ -479,7 +462,7 @@
 
   function svgBase(pathD) {
     return `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
         xmlns="http://www.w3.org/2000/svg" style="color: rgba(0,0,0,.80);">
         <path d="${pathD}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
