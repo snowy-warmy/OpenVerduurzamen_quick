@@ -25,6 +25,10 @@ app.use(
   })
 );
 
+app.get("/test", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/test.html"));
+});
+
 app.get("/", (_req, res) => {
   res.type("text/plain").send("Huislijn widget service running.");
 });
