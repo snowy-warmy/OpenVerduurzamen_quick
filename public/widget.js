@@ -75,9 +75,10 @@
         gap: 8px;
       }
 
+      /* Smaller logo (was 80x80) */
       .logo{
-        width: 80px;
-        height: 80px;
+        width: 16px;
+        height: 16px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
@@ -86,7 +87,7 @@
       .title{
         margin: 0;
         font-size: 16px;
-        font-weight: 700; /* lichter */
+        font-weight: 700;
         line-height: 1.2;
       }
 
@@ -114,7 +115,7 @@
         border: 1px solid rgba(0,0,0,.12);
         background: rgba(0,0,0,.03);
         font-size: 12px;
-        font-weight: 600; /* lichter */
+        font-weight: 600;
         white-space: nowrap;
       }
 
@@ -145,18 +146,18 @@
         height: 100%;
       }
 
+      /* Card header: icon + title + jump pill stacked */
       .cardTop{
         display:flex;
         align-items:flex-start;
-        justify-content: space-between;
         gap: 10px;
         margin-bottom: 10px;
       }
 
-      .leftHead{
+      .headStack{
         display:flex;
-        align-items:flex-start;
-        gap: 10px;
+        flex-direction: column;
+        gap: 8px;
         min-width: 0;
       }
 
@@ -172,18 +173,20 @@
         flex: 0 0 auto;
       }
 
+      /* Smaller title */
       .cardTitle{
         margin: 0;
-        font-size: 14px;
-        font-weight: 650; /* lichter */
-        line-height: 1.2;
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 1.25;
+        letter-spacing: -0.005em;
+
         word-break: normal;
-        overflow-wrap: break-word;
+        overflow-wrap: anywhere;
         hyphens: auto;
       }
 
       .jumpPill{
-        flex: 0 0 auto;
         display:inline-flex;
         align-items:center;
         gap: 6px;
@@ -192,9 +195,10 @@
         border: 1px solid rgba(0,0,0,.10);
         background: rgba(0,0,0,.03);
         font-size: 11px;
-        font-weight: 600; /* lichter */
+        font-weight: 600;
         color: rgba(0,0,0,.70);
         white-space: nowrap;
+        width: fit-content;
       }
 
       .jumpDot{
@@ -256,16 +260,14 @@
       .kpiLabel{
         font-size: 12px;
         color: rgba(0,0,0,.60);
-        font-weight: 600; /* lichter */
+        font-weight: 600;
       }
 
       .kpiValue{
         font-size: 13px;
-        font-weight: 600; /* NIET bold */
+        font-weight: 600;
         font-variant-numeric: tabular-nums;
         line-height: 1.2;
-
-        /* wrap alleen op dash */
         word-break: normal;
       }
 
@@ -466,13 +468,13 @@
     return `
       <div class="card">
         <div class="cardTop">
-          <div class="leftHead">
+          <div class="headStack">
             <div class="iconWrap" aria-hidden="true">${icon}</div>
             <h3 class="cardTitle">${title}</h3>
-          </div>
-          <div class="jumpPill" title="Indicatieve labelsprong">
-            <span class="jumpDot" style="background:${escapeHtml(jumpColor)}"></span>
-            <span>${escapeHtml(jumpText)}</span>
+            <div class="jumpPill" title="Indicatieve labelsprong">
+              <span class="jumpDot" style="background:${escapeHtml(jumpColor)}"></span>
+              <span>${escapeHtml(jumpText)}</span>
+            </div>
           </div>
         </div>
 
