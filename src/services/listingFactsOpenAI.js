@@ -1,79 +1,58 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = new GoogleGenAI({});
 
-// Strict schema: we gokken niet, null als we het niet zeker weten
 const LISTING_FACTS_SCHEMA = {
   type: "object",
-  additionalProperties: false,
   required: ["askingPriceEur", "solarPanelsCount", "hasSolarPanels", "notes"],
   properties: {
     askingPriceEur: { type: ["integer", "null"] },
     solarPanelsCount: { type: ["integer", "null"] },
     hasSolarPanels: { type: ["boolean", "null"] },
-    notes: { type: "string", minLength: 0, maxLength: 240 }
+    notes: { type: "string" }
   }
 };
 
-/**
- * Best-effort listing facts via OpenAI web_search tool.
- * Let op: als ENABLE_WEBSEARCH=false staat, wordt deze functie in routes/cards.js niet aangeroepen,
- * maar het bestand moet wél bestaan voor de import.
- */
 export async function getListingFactsViaOpenAIWebSearch({ url, listingId, addressHint }) {
-  const model =
-    process.env.OPENAI_MODEL_WEB_SEARCH ||
-    process.env.OPENAI_MODEL ||
-    "gpt-5-nano-2025-08-07";
+  const enabled = (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true";
+  if (!enabled) {
+    return { askingPriceEur: null, solarPanelsCount: null, hasSolarPanels: null, notes: "websearch disabled" };
+  }
 
-  const context = {
+  const model =
+    process.env.GEMINI_MODEL_SEARCH ||
+    process.env.GEMINI_MODEL ||
+    "gemini-2.5-flash-lite";
+
+  const prompt = {
     url,
     listingId: listingId || null,
     addressHint: addressHint || null
   };
 
-  const resp = await client.responses.create({
+  const resp = await ai.models.generateContent({
     model,
-    tools: [{ type: "web_search" }],
-    tool_choice: "auto",
-    text: {
-      format: {
-        type: "json_schema",
-        name: "huislijn_listing_facts",
-        strict: true,
-        schema: LISTING_FACTS_SCHEMA
-      }
-    },
-    input: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text:
-              "Gebruik web search om uit HUISLIJN (huislijn.nl) de volgende velden te halen voor deze woninglisting.\n" +
-              "- askingPriceEur: vraagprijs in hele euro’s (bv. 395000)\n" +
-              "- solarPanelsCount: aantal zonnepanelen als expliciet genoemd\n" +
-              "- hasSolarPanels: true/false als expliciet, anders null\n\n" +
-              "Regels:\n" +
-              "- Niet gokken. Als je het niet zeker weet: null.\n" +
-              "- Als er alleen staat 'zonnepanelen aanwezig' zonder aantal: hasSolarPanels=true en solarPanelsCount=null.\n" +
-              "- Probeer eerst info van de listing URL zelf; als dat niet kan, gebruik zoekresultaat-snippets binnen huislijn.nl.\n" +
-              "- Zet in notes kort waar je het vond (pagina/snippet).\n\n" +
-              "Context:\n" +
-              JSON.stringify(context, null, 2)
-          }
-        ]
-      }
-    ]
+    contents:
+      "Haal ALLEEN uit Huislijn (liefst uit de URL zelf) de velden:\n" +
+      "- askingPriceEur (hele euro’s)\n" +
+      "- hasSolarPanels (true/false/null)\n" +
+      "- solarPanelsCount (integer/null)\n" +
+      "Niet gokken; bij twijfel null.\n" +
+      "Gebruik urlContext om de pagina te lezen en googleSearch als fallback.\n\n" +
+      "Context:\n" + JSON.stringify(prompt, null, 2),
+    config: {
+      // Google Search grounding + URL context tools :contentReference[oaicite:7]{index=7}
+      tools: [{ googleSearch: {} }, { urlContext: {} }],
+      responseMimeType: "application/json",
+      responseJsonSchema: LISTING_FACTS_SCHEMA
+    }
   });
 
-  // OpenAI SDK geeft een text output terug in output_text (bij json_schema)
   let parsed;
   try {
-    parsed = JSON.parse(resp.output_text);
+    parsed = JSON.parse(resp.text);
   } catch {
-    throw new Error("web_search returned non-JSON (unexpected)");
+    throw new Error(`Gemini listingFacts returned non-JSON: ${String(resp.text || "").slice(0, 200)}`);
   }
 
   return {
