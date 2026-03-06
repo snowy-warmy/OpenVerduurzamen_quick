@@ -7,6 +7,9 @@
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
 
+  // Optional logo (small) shown next to title
+  const logoUrl = script?.getAttribute("data-logo") || "";
+
   let host = document.querySelector(targetSelector);
   if (!host) {
     host = document.createElement("div");
@@ -14,7 +17,7 @@
     document.body.appendChild(host);
   }
 
-  // Best-effort match Huislijn typography/colors
+  // Best-effort match host typography/colors
   try {
     const bodyStyle = getComputedStyle(document.body);
     const linkEl = document.querySelector("a");
@@ -54,7 +57,7 @@
         border: 1px solid var(--hlw-border);
         border-radius: var(--hlw-radius);
         box-shadow: var(--hlw-shadow);
-        padding: 16px;
+        padding: 14px;
         box-sizing: border-box;
       }
 
@@ -63,35 +66,56 @@
         justify-content: space-between;
         align-items:flex-start;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
+      }
+
+      .titleRow{
+        display:flex;
+        align-items:center;
+        gap: 8px;
+      }
+
+      .logo{
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        object-fit: contain;
+        display: inline-block;
       }
 
       .title{
         margin: 0;
-        font-size: 20px;
-        font-weight: 900;
-        line-height: 1.15;
-        letter-spacing: -0.01em;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.005em;
       }
 
       .subtitle{
-        margin: 6px 0 0;
-        font-size: 13px;
+        margin: 4px 0 0;
+        font-size: 12px;
         color: var(--hlw-muted);
         line-height: 1.3;
-        font-weight: 600;
+        font-weight: 500;
+      }
+
+      .pillRow{
+        display:flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content:flex-end;
       }
 
       .pill{
         display:inline-flex;
         align-items:center;
         gap: 8px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         border-radius: 999px;
         border: 1px solid rgba(0,0,0,.12);
         background: rgba(0,0,0,.03);
         font-size: 12px;
-        font-weight: 800;
+        font-weight: 700;
         white-space: nowrap;
       }
 
@@ -106,14 +130,14 @@
       .grid{
         display:grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
       }
 
       .card{
         border: 1px solid rgba(0,0,0,.10);
         border-radius: var(--hlw-card-radius);
         background: #fff;
-        padding: 14px;
+        padding: 12px;
         box-sizing: border-box;
         min-width: 0;
 
@@ -138,8 +162,8 @@
       }
 
       .iconWrap{
-        width: 38px;
-        height: 38px;
+        width: 34px;
+        height: 34px;
         border-radius: 12px;
         background: rgba(0,0,0,.03);
         border: 1px solid rgba(0,0,0,.08);
@@ -151,12 +175,11 @@
 
       .cardTitle{
         margin: 0;
-        font-size: 16px;
-        font-weight: 900;
-        line-height: 1.15;
-        letter-spacing: -0.01em;
+        font-size: 14px;
+        font-weight: 750;
+        line-height: 1.2;
+        letter-spacing: -0.005em;
 
-        /* Fix ugly letter-by-letter breaks */
         word-break: normal;
         overflow-wrap: break-word;
         hyphens: auto;
@@ -172,7 +195,7 @@
         border: 1px solid rgba(0,0,0,.10);
         background: rgba(0,0,0,.03);
         font-size: 11px;
-        font-weight: 900;
+        font-weight: 800;
         color: rgba(0,0,0,.70);
         white-space: nowrap;
       }
@@ -188,39 +211,39 @@
         margin: 0 0 12px;
         padding-left: 18px;
         color: var(--hlw-muted);
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.35;
-        font-weight: 600;
+        font-weight: 500;
       }
-      .bullets li{ margin: 6px 0; }
+      .bullets li{ margin: 5px 0; }
 
-      /* KPI row pinned bottom, no overlap */
+      /* KPI column pinned bottom */
       .kpis{
         margin-top: auto;
-        display:grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        padding-top: 12px;
+        display:flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 10px;
         border-top: 1px solid rgba(0,0,0,.08);
       }
 
       .kpi{
+        display:flex;
+        align-items:center;
+        justify-content: space-between;
+        gap: 10px;
         border: 1px solid rgba(0,0,0,.10);
         background: rgba(0,0,0,.02);
         border-radius: 12px;
-        padding: 10px;
+        padding: 8px 10px;
         min-width: 0;
       }
 
-      .kpiLabel{
-        font-size: 11px;
-        color: rgba(0,0,0,.58);
-        font-weight: 800;
-        margin: 0 0 6px;
+      .kpiLeft{
         display:flex;
         align-items:center;
-        gap: 6px;
-        white-space: nowrap;
+        gap: 8px;
+        min-width: 0;
       }
 
       .kpiIcon{
@@ -233,39 +256,51 @@
         align-items:center;
         justify-content:center;
         font-size: 11px;
-        font-weight: 900;
-        color: rgba(0,0,0,.70);
+        font-weight: 800;
+        color: rgba(0,0,0,.65);
         flex: 0 0 auto;
       }
 
-      .kpiValue{
-        font-size: 15px;
-        font-weight: 950;
-        line-height: 1.15;
-        letter-spacing: -0.01em;
-        font-variant-numeric: tabular-nums;
+      .kpiLabel{
+        font-size: 12px;
+        color: rgba(0,0,0,.60);
+        font-weight: 700;
+        white-space: nowrap;
+      }
 
-        /* prevent ugly wraps; allow wrap only at <wbr> */
+      .kpiValue{
+        font-size: 13px;
+        font-weight: 850;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
       .footer{
-        margin-top: 12px;
+        margin-top: 10px;
         font-size: 12px;
         color: rgba(0,0,0,.55);
         line-height: 1.35;
-        font-weight: 600;
+        font-weight: 500;
       }
+
+      .footer a{
+        color: var(--hlw-accent);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .footer a:hover{ text-decoration: underline; }
 
       .loadingRow{
         display:grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
+        gap: 12px;
       }
       .skeleton{
-        height: 210px;
+        height: 200px;
         border-radius: var(--hlw-card-radius);
         border: 1px solid rgba(0,0,0,.10);
         background: linear-gradient(90deg, rgba(0,0,0,.03), rgba(0,0,0,.06), rgba(0,0,0,.03));
@@ -278,35 +313,38 @@
       }
 
       .error{
-        font-size: 13px;
+        font-size: 12px;
         color: #b00020;
         padding: 6px 0;
-        font-weight: 700;
+        font-weight: 600;
       }
 
       @media (max-width: 900px){
         .grid{ grid-template-columns: 1fr; }
         .loadingRow{ grid-template-columns: 1fr; }
-        .kpiValue{
-          white-space: normal;   /* allow wrap on small */
-          overflow: visible;
-          text-overflow: clip;
-        }
-      }
-      @media (max-width: 520px){
-        .kpis{ grid-template-columns: 1fr; }
+        .kpiValue{ white-space: normal; overflow: visible; text-overflow: clip; }
       }
     </style>
 
     <div class="container" lang="nl">
       <div class="header">
         <div>
-          <h2 class="title">Verduurzamingsadvies</h2>
+          <div class="titleRow">
+            ${logoUrl ? `<img class="logo" alt="" src="${escapeAttr(logoUrl)}" />` : ``}
+            <h2 class="title">Verduurzamingsadvies</h2>
+          </div>
           <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
         </div>
-        <div class="pill" id="hlw-pill">
-          <span class="dot" id="hlw-dot"></span>
-          <span id="hlw-pill-text">Energielabel: …</span>
+
+        <div class="pillRow">
+          <div class="pill" id="hlw-pill-energy">
+            <span class="dot" id="hlw-dot"></span>
+            <span id="hlw-pill-text">Energielabel: …</span>
+          </div>
+          <div class="pill" id="hlw-pill-year" style="display:none;">
+            <span style="font-weight:800;">🏗️</span>
+            <span id="hlw-year-text">Bouwjaar: …</span>
+          </div>
         </div>
       </div>
 
@@ -324,6 +362,10 @@
 
   const pillText = shadow.getElementById("hlw-pill-text");
   const dot = shadow.getElementById("hlw-dot");
+
+  const yearPill = shadow.getElementById("hlw-pill-year");
+  const yearText = shadow.getElementById("hlw-year-text");
+
   const body = shadow.getElementById("hlw-body");
   const footer = shadow.getElementById("hlw-footer");
 
@@ -347,20 +389,37 @@
       const label = (j?.energyLabel?.label || "").toUpperCase() || null;
       setEnergyLabelPill(label);
 
+      const bouwjaar = j?.energyLabel?.building?.bouwjaar ?? null;
+      setYearPill(bouwjaar);
+
       const cards = j?.cards?.cards || [];
       const disclaimer = j?.cards?.disclaimer || "";
 
       body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, label)).join("")}</div>`;
 
-      if (disclaimer) {
-        footer.style.display = "block";
-        footer.textContent = disclaimer;
-      }
+      // Footer: disclaimer + extra line + link
+      footer.style.display = "block";
+      footer.innerHTML =
+        `${escapeHtml(disclaimer || "Indicaties zijn bandbreedtes en afhankelijk van woning en uitvoering.")}<br/>` +
+        `Begeleiding en uitvoer via <a href="https://www.woonwijzerwinkel.nl" target="_blank" rel="noopener noreferrer">WoonWijzerWinkel</a>.`;
     })
     .catch((e) => {
       setEnergyLabelPill(null);
+      setYearPill(null);
       body.innerHTML = `<div class="error">Kon verduurzamingsadvies niet laden. (${escapeHtml(String(e.message || e))})</div>`;
+      footer.style.display = "block";
+      footer.innerHTML =
+        `Begeleiding en uitvoer via <a href="https://www.woonwijzerwinkel.nl" target="_blank" rel="noopener noreferrer">WoonWijzerWinkel</a>.`;
     });
+
+  function setYearPill(year) {
+    if (!year) {
+      yearPill.style.display = "none";
+      return;
+    }
+    yearPill.style.display = "inline-flex";
+    yearText.textContent = `Bouwjaar: ${year}`;
+  }
 
   function setEnergyLabelPill(label) {
     if (!label) {
@@ -388,7 +447,7 @@
   function renderCard(c, currentLabel) {
     const title = escapeHtml(c.title || "Maatregel");
     const bullets = Array.isArray(c.bullets) ? c.bullets.slice(0, 3) : [];
-    const bulletsShort = bullets.map((b) => shortenWords(b, 5)); // enforce 5 words
+    const bulletsShort = bullets.map((b) => shortenWords(b, 5));
 
     const investment = (c.indicative_cost || "€—").toString().trim();
     const saving = (c.indicative_saving || "—").toString().trim();
@@ -418,30 +477,33 @@
         </ul>
 
         <div class="kpis">
-          <div class="kpi">
-            <div class="kpiLabel"><span class="kpiIcon">€</span>Investering</div>
-            <div class="kpiValue" title="${escapeHtml(investment)}">${formatValue(investment)}</div>
-          </div>
-          <div class="kpi">
-            <div class="kpiLabel"><span class="kpiIcon">↘</span>Besparing p/m</div>
-            <div class="kpiValue" title="${escapeHtml(saving)}">${formatValue(saving)}</div>
-          </div>
-          <div class="kpi">
-            <div class="kpiLabel"><span class="kpiIcon">▲</span>Waardestijging</div>
-            <div class="kpiValue" title="${escapeHtml(uplift)}">${formatValue(uplift)}</div>
-          </div>
+          ${renderKpi("€", "Investering", investment)}
+          ${renderKpi("↘", "Besparing p/m", saving)}
+          ${renderKpi("▲", "Waardestijging", uplift)}
         </div>
       </div>
     `;
   }
 
-  // Allow wrap only at dashes; prevents ugly digit wrapping
+  function renderKpi(icon, label, value) {
+    const v = (value || "—").toString().trim() || "—";
+    return `
+      <div class="kpi">
+        <div class="kpiLeft">
+          <span class="kpiIcon">${escapeHtml(icon)}</span>
+          <span class="kpiLabel">${escapeHtml(label)}</span>
+        </div>
+        <div class="kpiValue" title="${escapeHtml(v)}">${formatValue(v)}</div>
+      </div>
+    `;
+  }
+
+  // allow wrap only at dashes
   function formatValue(text) {
     const safe = escapeHtml(String(text ?? "").trim() || "—");
     return safe
       .replaceAll("–", "–<wbr>")
-      .replaceAll("-", "-<wbr>")
-      .replaceAll("—", "—");
+      .replaceAll("-", "-<wbr>");
   }
 
   function shortenWords(text, maxWords) {
@@ -462,8 +524,8 @@
 
   function svgBase(pathD) {
     return `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-        xmlns="http://www.w3.org/2000/svg" style="color: rgba(0,0,0,.80);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+        xmlns="http://www.w3.org/2000/svg" style="color: rgba(0,0,0,.78);">
         <path d="${pathD}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `;
@@ -474,6 +536,14 @@
   function svgWindow() { return svgBase("M6 4h12v16H6V4Zm6 0v16M6 12h12"); }
   function svgSeal() { return svgBase("M4 12h8m0 0 4-6m-4 6 4 6m4-6h-2"); }
   function svgInsulation() { return svgBase("M4 12l4-4 4 4 4-4 4 4-4 4-4-4-4 4-4-4Z"); }
+
+  function escapeAttr(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
 
   function escapeHtml(s) {
     return String(s ?? "")
