@@ -7,7 +7,7 @@
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
 
-  // Optional logo (small) shown next to title
+  // Optional logo shown next to title
   const logoUrl = script?.getAttribute("data-logo") || "";
 
   let host = document.querySelector(targetSelector);
@@ -86,9 +86,8 @@
       .title{
         margin: 0;
         font-size: 16px;
-        font-weight: 800;
+        font-weight: 700; /* lichter */
         line-height: 1.2;
-        letter-spacing: -0.005em;
       }
 
       .subtitle{
@@ -115,7 +114,7 @@
         border: 1px solid rgba(0,0,0,.12);
         background: rgba(0,0,0,.03);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600; /* lichter */
         white-space: nowrap;
       }
 
@@ -176,10 +175,8 @@
       .cardTitle{
         margin: 0;
         font-size: 14px;
-        font-weight: 750;
+        font-weight: 650; /* lichter */
         line-height: 1.2;
-        letter-spacing: -0.005em;
-
         word-break: normal;
         overflow-wrap: break-word;
         hyphens: auto;
@@ -195,7 +192,7 @@
         border: 1px solid rgba(0,0,0,.10);
         background: rgba(0,0,0,.03);
         font-size: 11px;
-        font-weight: 800;
+        font-weight: 600; /* lichter */
         color: rgba(0,0,0,.70);
         white-space: nowrap;
       }
@@ -217,7 +214,7 @@
       }
       .bullets li{ margin: 5px 0; }
 
-      /* KPI column pinned bottom */
+      /* KPI column pinned bottom (STACKED label + value) */
       .kpis{
         margin-top: auto;
         display:flex;
@@ -228,22 +225,17 @@
       }
 
       .kpi{
-        display:flex;
-        align-items:center;
-        justify-content: space-between;
-        gap: 10px;
         border: 1px solid rgba(0,0,0,.10);
         background: rgba(0,0,0,.02);
         border-radius: 12px;
         padding: 8px 10px;
-        min-width: 0;
       }
 
-      .kpiLeft{
+      .kpiHead{
         display:flex;
         align-items:center;
         gap: 8px;
-        min-width: 0;
+        margin-bottom: 4px;
       }
 
       .kpiIcon{
@@ -256,7 +248,7 @@
         align-items:center;
         justify-content:center;
         font-size: 11px;
-        font-weight: 800;
+        font-weight: 700;
         color: rgba(0,0,0,.65);
         flex: 0 0 auto;
       }
@@ -264,19 +256,17 @@
       .kpiLabel{
         font-size: 12px;
         color: rgba(0,0,0,.60);
-        font-weight: 700;
-        white-space: nowrap;
+        font-weight: 600; /* lichter */
       }
 
       .kpiValue{
         font-size: 13px;
-        font-weight: 850;
+        font-weight: 600; /* NIET bold */
         font-variant-numeric: tabular-nums;
-        line-height: 1.1;
+        line-height: 1.2;
 
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        /* wrap alleen op dash */
+        word-break: normal;
       }
 
       .footer{
@@ -290,7 +280,7 @@
       .footer a{
         color: var(--hlw-accent);
         text-decoration: none;
-        font-weight: 700;
+        font-weight: 600;
       }
       .footer a:hover{ text-decoration: underline; }
 
@@ -322,7 +312,6 @@
       @media (max-width: 900px){
         .grid{ grid-template-columns: 1fr; }
         .loadingRow{ grid-template-columns: 1fr; }
-        .kpiValue{ white-space: normal; overflow: visible; text-overflow: clip; }
       }
     </style>
 
@@ -330,7 +319,7 @@
       <div class="header">
         <div>
           <div class="titleRow">
-            ${logoUrl ? `<img class="logo" alt="" src="${escapeAttr(logoUrl)}" />` : ``}
+            ${logoUrl ? `<img id="hlw-logo" class="logo" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="${escapeAttr(logoUrl)}" />` : ``}
             <h2 class="title">Verduurzamingsadvies</h2>
           </div>
           <div class="subtitle">3 maatregelen die het meeste opleveren voor comfort, kosten en waarde.</div>
@@ -342,7 +331,7 @@
             <span id="hlw-pill-text">Energielabel: …</span>
           </div>
           <div class="pill" id="hlw-pill-year" style="display:none;">
-            <span style="font-weight:800;">🏗️</span>
+            <span style="font-weight:700;">🏗️</span>
             <span id="hlw-year-text">Bouwjaar: …</span>
           </div>
         </div>
@@ -359,6 +348,22 @@
       <div class="footer" id="hlw-footer" style="display:none;"></div>
     </div>
   `;
+
+  // Logo fallback (if browser blocks first src for any reason)
+  const logoEl = shadow.getElementById("hlw-logo");
+  if (logoEl) {
+    const fallbacks = [
+      logoUrl,
+      `${apiBase}/OpenVerduurzamenlogo.jpg`,
+      `${apiBase}/public/OpenVerduurzamenlogo.jpg`
+    ].filter(Boolean);
+
+    let i = 0;
+    logoEl.addEventListener("error", () => {
+      i += 1;
+      if (i < fallbacks.length) logoEl.src = fallbacks[i];
+    });
+  }
 
   const pillText = shadow.getElementById("hlw-pill-text");
   const dot = shadow.getElementById("hlw-dot");
@@ -397,7 +402,6 @@
 
       body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, label)).join("")}</div>`;
 
-      // Footer: disclaimer + extra line + link
       footer.style.display = "block";
       footer.innerHTML =
         `${escapeHtml(disclaimer || "Indicaties zijn bandbreedtes en afhankelijk van woning en uitvoering.")}<br/>` +
@@ -489,7 +493,7 @@
     const v = (value || "—").toString().trim() || "—";
     return `
       <div class="kpi">
-        <div class="kpiLeft">
+        <div class="kpiHead">
           <span class="kpiIcon">${escapeHtml(icon)}</span>
           <span class="kpiLabel">${escapeHtml(label)}</span>
         </div>
@@ -498,12 +502,9 @@
     `;
   }
 
-  // allow wrap only at dashes
   function formatValue(text) {
     const safe = escapeHtml(String(text ?? "").trim() || "—");
-    return safe
-      .replaceAll("–", "–<wbr>")
-      .replaceAll("-", "-<wbr>");
+    return safe.replaceAll("–", "–<wbr>").replaceAll("-", "-<wbr>");
   }
 
   function shortenWords(text, maxWords) {
