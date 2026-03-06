@@ -76,8 +76,8 @@
       }
 
       .logo{
-        width: 16px;
-        height: 16px;
+        width: 30px;
+        height: 30px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
