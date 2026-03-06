@@ -404,7 +404,7 @@
 
       footer.style.display = "block";
       footer.innerHTML =
-        `${escapeHtml(disclaimer || "Indicaties zijn bandbreedtes en afhankelijk van woning en uitvoering.")}<br/>` +
+        `${escapeHtml(disclaimer || "Indicaties zijn bandbreedtes en afhankelijk van woning en uitvoering. Powered by OpenVerduurzamen. Aan deze analyse kunnen geen rechten ontleent worden.")}<br/>` +
         `Begeleiding en uitvoer via <a href="https://www.woonwijzerwinkel.nl" target="_blank" rel="noopener noreferrer">WoonWijzerWinkel</a>.`;
     })
     .catch((e) => {
