@@ -77,8 +77,8 @@
 
       /* Smaller logo (was 80x80) */
       .logo{
-        width: 16px;
-        height: 16px;
+        width: 50px;
+        height: 50px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
