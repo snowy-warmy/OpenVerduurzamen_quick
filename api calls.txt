@@ -1,0 +1,7 @@
+curl -L -H "Authorization: Bearer <TOKEN>" \
+  "https://<service>/api/export.csv?type=cta_click&since=2026-03-01"
+
+curl -L \
+  -H "Authorization: Bearer <JOUW_EXPORT_TOKEN>" \
+  "https://<jouw-service>.onrender.com/api/export.csv"
+
