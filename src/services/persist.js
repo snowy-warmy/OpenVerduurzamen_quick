@@ -3,11 +3,12 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 const DEFAULT_DIR = path.join(process.cwd(), ".data");
-const DATA_DIR = process.env.DATA_DIR || DEFAULT_DIR;
 
-const CACHE_DIR = path.join(DATA_DIR, "cache");
-const EVENTS_DIR = path.join(DATA_DIR, "events");
-const EVENTS_FILE = path.join(EVENTS_DIR, "events.ndjson");
+// baseDir can switch to fallback if mount is missing/unwritable
+let baseDir = process.env.DATA_DIR || DEFAULT_DIR;
+let cacheDir = path.join(baseDir, "cache");
+let eventsDir = path.join(baseDir, "events");
+let eventsFile = path.join(eventsDir, "events.ndjson");
 
 let initialized = false;
 
@@ -15,15 +16,18 @@ async function ensureDirs() {
   if (initialized) return;
 
   try {
-    await fs.mkdir(CACHE_DIR, { recursive: true });
-    await fs.mkdir(EVENTS_DIR, { recursive: true });
+    await fs.mkdir(cacheDir, { recursive: true });
+    await fs.mkdir(eventsDir, { recursive: true });
     initialized = true;
   } catch {
-    // fallback to local .data if mount is missing/unwritable
-    const fbCache = path.join(DEFAULT_DIR, "cache");
-    const fbEvents = path.join(DEFAULT_DIR, "events");
-    await fs.mkdir(fbCache, { recursive: true });
-    await fs.mkdir(fbEvents, { recursive: true });
+    // fallback to local .data
+    baseDir = DEFAULT_DIR;
+    cacheDir = path.join(baseDir, "cache");
+    eventsDir = path.join(baseDir, "events");
+    eventsFile = path.join(eventsDir, "events.ndjson");
+
+    await fs.mkdir(cacheDir, { recursive: true });
+    await fs.mkdir(eventsDir, { recursive: true });
     initialized = true;
   }
 }
@@ -34,7 +38,7 @@ function keyToFilename(key) {
 }
 
 function cachePath(key) {
-  return path.join(CACHE_DIR, keyToFilename(key));
+  return path.join(cacheDir, keyToFilename(key));
 }
 
 export async function cacheGet(key) {
@@ -79,5 +83,15 @@ export async function eventAppend(evt) {
       ts: evt.ts || new Date().toISOString()
     }) + "\n";
 
-  await fs.appendFile(EVENTS_FILE, line, "utf8");
+  await fs.appendFile(eventsFile, line, "utf8");
+}
+
+export async function getEventsFilePath() {
+  await ensureDirs();
+  return eventsFile;
+}
+
+export async function getBaseDir() {
+  await ensureDirs();
+  return baseDir;
 }
