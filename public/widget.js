@@ -77,8 +77,8 @@
 
       /* Smaller logo (was 80x80) */
       .logo{
-        width: 50px;
-        height: 50px;
+        width: 80px;
+        height: 80px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
@@ -86,8 +86,8 @@
 
       .title{
         margin: 0;
-        font-size: 16px;
-        font-weight: 700;
+        font-size: 2.4rem !important;
+        font-weight: 400;
         line-height: 1.2;
       }
 
@@ -176,8 +176,8 @@
       /* Smaller title */
       .cardTitle{
         margin: 0;
-        font-size: 13px;
-        font-weight: 650;
+        font-size: 0.8rem;
+        font-weight: 400;
         line-height: 1.25;
         letter-spacing: -0.005em;
 
@@ -264,8 +264,8 @@
       }
 
       .kpiValue{
-        font-size: 13px;
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 500;
         font-variant-numeric: tabular-nums;
         line-height: 1.2;
         word-break: normal;
