@@ -77,8 +77,8 @@
 
       /* Smaller logo (was 80x80) */
       .logo{
-        width: 80px;
-        height: 80px;
+        width: 85px;
+        height: 85px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
@@ -86,9 +86,10 @@
 
       .title{
         margin: 0;
-        font-size: 2.4rem !important;
+        font-size: 1.5rem !important;
         font-weight: 400;
         line-height: 1.2;
+        color: #01444f;
       }
 
       .subtitle{
@@ -177,9 +178,10 @@
       .cardTitle{
         margin: 0;
         font-size: 0.8rem;
-        font-weight: 400;
+        font-weight: 600;
         line-height: 1.25;
         letter-spacing: -0.005em;
+        color: #01444f;
 
         word-break: normal;
         overflow-wrap: anywhere;
