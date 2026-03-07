@@ -356,8 +356,8 @@
   if (logoEl) {
     const fallbacks = [
       logoUrl,
-      `${apiBase}/OpenVerduurzamenlogo.jpg`,
-      `${apiBase}/public/OpenVerduurzamenlogo.jpg`
+      `${apiBase}/OpenVerduurzamenlogo.png`,
+      `${apiBase}/public/OpenVerduurzamenlogo.png`
     ].filter(Boolean);
 
     let i = 0;
