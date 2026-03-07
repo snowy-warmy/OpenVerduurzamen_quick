@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, json as expressJson } from "express";
 import { LRUCache } from "lru-cache";
 import { parseHuislijnUrl } from "../utils/parseHuislijnUrl.js";
 import { bagLookupAddress } from "../services/bag.js";
@@ -6,20 +6,25 @@ import { epGetEnergyLabel } from "../services/epOnline.js";
 import { openaiGenerateCards } from "../services/openai.js";
 import { getSchemaDebug } from "../services/openaiSchema.js";
 import { getListingFactsViaOpenAIWebSearch } from "../services/listingFactsOpenAI.js";
+import { cacheGet, cacheSet, eventAppend } from "../services/persist.js";
 
 const router = Router();
 
-// Cache full payload (cards output etc.)
+// In-memory cache (hot)
 const cache = new LRUCache({
-  max: 1000,
-  ttl: 1000 * 60 * 60 * 24 // 24h
-});
-
-// Cache listing facts separately (price/pv can change; web_search is slower)
-const listingCache = new LRUCache({
-  max: 1000,
+  max: 5000,
   ttl: 1000 * 60 * 60 * 6 // 6h
 });
+
+// In-memory cache for listing facts (hot)
+const listingCache = new LRUCache({
+  max: 5000,
+  ttl: 1000 * 60 * 60 * 6 // 6h
+});
+
+// Disk cache TTL (default 31 days)
+const ttlDays = Number(process.env.CACHE_TTL_DAYS || "31");
+const diskTtlMs = ttlDays * 24 * 60 * 60 * 1000;
 
 function isAllowedOrigin(origin) {
   if (!origin) return false;
@@ -30,6 +35,20 @@ function isAllowedOrigin(origin) {
   return allowed.includes(origin);
 }
 
+function maskIp(ip) {
+  if (!ip) return null;
+  // very rough masking: keep only first 2 octets for IPv4
+  const m = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (m) return `${m[1]}.${m[2]}.0.0`;
+  return null;
+}
+
+function getClientIp(req) {
+  const xf = req.headers["x-forwarded-for"]?.toString();
+  if (xf) return xf.split(",")[0].trim();
+  return null;
+}
+
 // CORS for API routes
 router.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -37,7 +56,7 @@ router.use((req, res, next) => {
   if (isAllowedOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
-    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   }
 
@@ -45,7 +64,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// Handy: check what code is running
+// Version endpoint
 router.get("/version", (_req, res) => {
   res.json({
     service: "huislijn-duurzaam-widget",
@@ -53,8 +72,44 @@ router.get("/version", (_req, res) => {
     node: process.version,
     renderCommit: process.env.RENDER_GIT_COMMIT || null,
     renderServiceId: process.env.RENDER_SERVICE_ID || null,
-    websearchEnabled: ((process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true")
+    websearchEnabled: ((process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true"),
+    cacheTtlDays: ttlDays,
+    dataDir: process.env.DATA_DIR || null
   });
+});
+
+/**
+ * Track endpoint for analytics (clicks, impressions, etc.)
+ * POST /api/track
+ * Body example:
+ * { type:"cta_click", url:"...", listingId:"...", cardIndex:0, meta:{...} }
+ */
+router.post("/track", expressJson({ limit: "50kb" }), async (req, res) => {
+  try {
+    const origin = req.headers.origin || null;
+    const referer = req.headers.referer || null;
+    const ua = req.headers["user-agent"] || null;
+    const ip = maskIp(getClientIp(req));
+
+    const body = req.body || {};
+    const evt = {
+      type: String(body.type || "unknown"),
+      url: body.url ? String(body.url) : null,
+      listingId: body.listingId ? String(body.listingId) : null,
+      cacheKey: body.cacheKey ? String(body.cacheKey) : null,
+      cardIndex: Number.isFinite(body.cardIndex) ? body.cardIndex : null,
+      meta: body.meta && typeof body.meta === "object" ? body.meta : null,
+      origin,
+      referer,
+      ua,
+      ipMasked: ip
+    };
+
+    await eventAppend(evt);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false });
+  }
 });
 
 router.get("/cards", async (req, res) => {
@@ -89,30 +144,39 @@ router.get("/cards", async (req, res) => {
       return res.status(400).json({ error: "Missing ?url=" });
     }
 
-    const parsed = timed("parse_url", async () => parseHuislijnUrl(url));
-    const parsedResolved = await parsed;
+    const parsedResolved = await timed("parse_url", async () => parseHuislijnUrl(url));
 
-    const cacheKey = `${parsedResolved.listingId || ""}|${parsedResolved.street}|${parsedResolved.houseNumberRaw}|${parsedResolved.place || ""}`;
+    const cacheKey =
+      `${parsedResolved.listingId || ""}|${parsedResolved.street}|${parsedResolved.houseNumberRaw}|${parsedResolved.place || ""}`;
 
+    // 0) Cache lookup (memory -> disk) when allowed
     if (!noCache) {
-      const cached = cache.get(cacheKey);
-      if (cached) return res.json({ ...cached, cached: true });
+      const mem = cache.get(cacheKey);
+      if (mem) {
+        return res.json({ ...mem, cached: true, cacheLayer: "mem" });
+      }
+
+      const disk = await timed("disk_cache_get", async () => cacheGet(`cards:${cacheKey}`));
+      if (disk) {
+        // warm memory
+        cache.set(cacheKey, disk);
+        return res.json({ ...disk, cached: true, cacheLayer: "disk" });
+      }
     }
 
-    // 1) BAG lookup (non-fatal: if it fails, continue with parsed URL)
+    // 1) BAG lookup (non-fatal)
     let bag = null;
     try {
       bag = await timed("bag", async () => bagLookupAddress(parsedResolved));
     } catch (e) {
       bag = null;
       if (debug) {
-        // keep going; include error in debug later
         timings.bag_error = String(e?.message || e);
         timings.bag_error_stage = e?._stage || "bag";
       }
     }
 
-    // 2) EP-online (non-fatal: if it fails, continue without label)
+    // 2) EP-online (non-fatal)
     let energyLabel = null;
     try {
       energyLabel = await timed("ep_online", async () =>
@@ -132,13 +196,12 @@ router.get("/cards", async (req, res) => {
       }
     }
 
-    // 3) Listing facts (web_search) - optional
+    // 3) Listing facts (optional, slow)
     const listingKey = parsedResolved.listingId ? `id:${parsedResolved.listingId}` : `url:${url}`;
     let listing = null;
 
     if (!noCache) listing = listingCache.get(listingKey) || null;
 
-    // Only do websearch on enrich=1 and enabled
     if (!listing && enrich && websearchEnabled) {
       try {
         const facts = await timed("websearch_listing", async () =>
@@ -175,12 +238,18 @@ router.get("/cards", async (req, res) => {
       listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: "fast" };
     }
 
-    // If websearch disabled OR not enriching, keep listing empty
+    // If disabled or not enriching
     if (!listing) {
-      listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: websearchEnabled ? "none" : "disabled" };
+      listing = {
+        url,
+        askingPriceEur: null,
+        hasSolarPanels: null,
+        solarPanelsCount: null,
+        source: websearchEnabled ? "none" : "disabled"
+      };
     }
 
-    // 4) OpenAI cards (this is the ONLY fatal step by default)
+    // 4) Cards (fatal if fails)
     const cards = await timed("openai_cards", async () =>
       openaiGenerateCards({
         address: {
@@ -221,12 +290,32 @@ router.get("/cards", async (req, res) => {
         : {})
     };
 
+    // 5) Save caches
     cache.set(cacheKey, payload);
+
+    if (!noCache) {
+      // Compact payload for disk (avoid huge raw blobs)
+      const toPersist = {
+        addressParsedFromUrl: payload.addressParsedFromUrl,
+        bag: payload.bag,
+        energyLabel: payload.energyLabel
+          ? {
+              label: payload.energyLabel.label ?? null,
+              registratiedatum: payload.energyLabel.registratiedatum ?? null,
+              building: payload.energyLabel.building ?? null
+            }
+          : null,
+        listing: payload.listing ?? null,
+        cards: payload.cards,
+        generatedAt: payload.generatedAt
+      };
+
+      await timed("disk_cache_set", async () => cacheSet(`cards:${cacheKey}`, toPersist, diskTtlMs));
+    }
+
     res.json(payload);
   } catch (err) {
     console.error(err);
-
-    // Try to surface underlying cause (undici often puts details in err.cause)
     const cause = err?.cause ? String(err.cause?.message || err.cause) : null;
 
     res.status(500).json({
@@ -243,7 +332,9 @@ router.get("/cards", async (req, res) => {
                 websearchEnabled: (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true"
               },
               envPresent: {
+                // keep both, depending on which provider you use
                 OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
+                GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
                 BAG_API_KEY: Boolean(process.env.BAG_API_KEY),
                 EPONLINE_API_KEY: Boolean(process.env.EPONLINE_API_KEY)
               }
