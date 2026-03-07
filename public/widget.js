@@ -55,7 +55,7 @@
         width: 100%;
         background: #fff;
         border: 1px solid var(--hlw-border);
-        border-radius: var(--hlw-radius);
+        border-radius: .4rem;
         box-shadow: var(--hlw-shadow);
         padding: 14px;
         box-sizing: border-box;
