@@ -59,14 +59,22 @@
         box-shadow: var(--hlw-shadow);
         padding: 14px;
         box-sizing: border-box;
+        overflow: hidden; /* prevents header pills overflowing on tiny screens */
       }
 
+      /* ✅ responsive header: wrap + stack on mobile */
       .header{
         display:flex;
         justify-content: space-between;
         align-items:flex-start;
         gap: 12px;
         margin-bottom: 12px;
+        flex-wrap: wrap; /* KEY */
+      }
+
+      .headerLeft{
+        flex: 1 1 320px;
+        min-width: 0;
       }
 
       .titleRow{
@@ -75,13 +83,14 @@
         gap: 8px;
       }
 
-      /* Smaller logo (was 80x80) */
+      /* your current logo size */
       .logo{
         width: 85px;
         height: 85px;
         border-radius: 4px;
         object-fit: contain;
         display: inline-block;
+        flex: 0 0 auto;
       }
 
       .title{
@@ -105,6 +114,8 @@
         gap: 8px;
         flex-wrap: wrap;
         justify-content:flex-end;
+        align-items:flex-start;
+        flex: 0 0 auto;
       }
 
       .pill{
@@ -118,6 +129,7 @@
         font-size: 12px;
         font-weight: 600;
         white-space: nowrap;
+        max-width: 100%;
       }
 
       .pill .dot{
@@ -174,7 +186,6 @@
         flex: 0 0 auto;
       }
 
-      /* Smaller title */
       .cardTitle{
         margin: 0;
         font-size: 0.8rem;
@@ -313,15 +324,43 @@
         font-weight: 600;
       }
 
+      /* ✅ cards already stack at <=900px */
       @media (max-width: 900px){
         .grid{ grid-template-columns: 1fr; }
         .loadingRow{ grid-template-columns: 1fr; }
+      }
+
+      /* ✅ fix the exact issue you showed: header pills overlap on narrow screens */
+      @media (max-width: 560px){
+        .header{
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .pillRow{
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .pill{
+          width: fit-content;
+        }
+      }
+
+      /* ✅ ultra narrow: make pills full width so they never float/overlap */
+      @media (max-width: 380px){
+        .pillRow{
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .pill{
+          width: 100%;
+          justify-content: flex-start;
+        }
       }
     </style>
 
     <div class="container" lang="nl">
       <div class="header">
-        <div>
+        <div class="headerLeft">
           <div class="titleRow">
             ${logoUrl ? `<img id="hlw-logo" class="logo" alt="" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="${escapeAttr(logoUrl)}" />` : ``}
             <h2 class="title">Verduurzamingsadvies</h2>
