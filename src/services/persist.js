@@ -20,7 +20,6 @@ async function ensureDirs() {
     await fs.mkdir(eventsDir, { recursive: true });
     initialized = true;
   } catch {
-    // fallback to local .data
     baseDir = DEFAULT_DIR;
     cacheDir = path.join(baseDir, "cache");
     eventsDir = path.join(baseDir, "events");
