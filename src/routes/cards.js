@@ -359,6 +359,10 @@ router.get("/cards", async (req, res) => {
             askingPriceEur: facts.askingPriceEur ?? null,
             hasSolarPanels: facts.hasSolarPanels ?? null,
             solarPanelsCount: facts.solarPanelsCount ?? null,
+
+            // NEW: list of already-present measures (e.g. ["zonnepanelen", "dakisolatie", ...])
+            existingMeasures: Array.isArray(facts.existingMeasures) ? facts.existingMeasures : [],
+
             notes: facts.notes ?? ""
           };
 
@@ -369,6 +373,7 @@ router.get("/cards", async (req, res) => {
             askingPriceEur: null,
             hasSolarPanels: null,
             solarPanelsCount: null,
+            existingMeasures: [],
             notes: "web_search failed",
             error: String(e?.message || e)
           };
@@ -376,11 +381,25 @@ router.get("/cards", async (req, res) => {
       }
 
       if (fast && !listing) {
-        listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: "fast" };
+        listing = {
+          url,
+          askingPriceEur: null,
+          hasSolarPanels: null,
+          solarPanelsCount: null,
+          existingMeasures: [],
+          source: "fast"
+        };
       }
 
       if (!listing) {
-        listing = { url, askingPriceEur: null, hasSolarPanels: null, solarPanelsCount: null, source: websearchEnabled ? "none" : "disabled" };
+        listing = {
+          url,
+          askingPriceEur: null,
+          hasSolarPanels: null,
+          solarPanelsCount: null,
+          existingMeasures: [],
+          source: websearchEnabled ? "none" : "disabled"
+        };
       }
 
       // 4) Cards (fatal)
@@ -396,11 +415,14 @@ router.get("/cards", async (req, res) => {
           },
           bag,
           energyLabel,
+
+          // UPDATED: pass existingMeasures through to model
           listing: {
             url: listing.url,
             askingPriceEur: listing.askingPriceEur,
             hasSolarPanels: listing.hasSolarPanels,
-            solarPanelsCount: listing.solarPanelsCount
+            solarPanelsCount: listing.solarPanelsCount,
+            existingMeasures: listing.existingMeasures || []
           }
         })
       );
@@ -439,7 +461,7 @@ router.get("/cards", async (req, res) => {
                 building: payload.energyLabel.building ?? null
               }
             : null,
-          listing: payload.listing ?? null,
+          listing: payload.listing ?? null, // includes existingMeasures now
           cards: payload.cards,
           generatedAt: payload.generatedAt
         };
