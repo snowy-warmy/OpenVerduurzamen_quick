@@ -7,11 +7,14 @@
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
 
-  // ✅ NEW: allow forcing enrich from embed/demo
+  // Enrich control (demo uses this)
   const enrichMode = script?.getAttribute("data-enrich") === "1";
 
   // Optional logo shown next to title
   const logoUrl = script?.getAttribute("data-logo") || "";
+
+  // Report URL (optional; can be empty now)
+  const reportUrl = script?.getAttribute("data-report-url") || "";
 
   let host = document.querySelector(targetSelector);
   if (!host) {
@@ -62,17 +65,16 @@
         box-shadow: var(--hlw-shadow);
         padding: 14px;
         box-sizing: border-box;
-        overflow: hidden; /* prevents header pills overflowing on tiny screens */
+        overflow: hidden;
       }
 
-      /* ✅ responsive header: wrap + stack on mobile */
       .header{
         display:flex;
         justify-content: space-between;
         align-items:flex-start;
         gap: 12px;
         margin-bottom: 12px;
-        flex-wrap: wrap; /* KEY */
+        flex-wrap: wrap;
       }
 
       .headerLeft{
@@ -83,10 +85,9 @@
       .titleRow{
         display:flex;
         align-items:center;
-        gap: 8px;
+        gap: 10px;
       }
 
-      /* your current logo size */
       .logo{
         width: 85px;
         height: 85px;
@@ -105,7 +106,7 @@
       }
 
       .subtitle{
-        margin: 4px 0 0;
+        margin: 6px 0 0;
         font-size: 12px;
         color: var(--hlw-muted);
         line-height: 1.3;
@@ -162,7 +163,6 @@
         height: 100%;
       }
 
-      /* Card header: icon + title + jump pill stacked */
       .cardTop{
         display:flex;
         align-items:flex-start;
@@ -234,7 +234,6 @@
       }
       .bullets li{ margin: 5px 0; }
 
-      /* KPI column pinned bottom (STACKED label + value) */
       .kpis{
         margin-top: auto;
         display:flex;
@@ -287,6 +286,39 @@
         word-break: normal;
       }
 
+      .upsell{
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(0,0,0,.08);
+        display:flex;
+        gap: 12px;
+        align-items:center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .upsellText{
+        font-size: 12px;
+        color: rgba(0,0,0,.62);
+        line-height: 1.35;
+        font-weight: 500;
+        flex: 1 1 300px;
+        min-width: 0;
+      }
+
+      .upsellBtn{
+        border: 1px solid rgba(0,0,0,.20);
+        background: #fff;
+        border-radius: 12px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        color: #01444f;
+        white-space: nowrap;
+      }
+      .upsellBtn:hover{ background: rgba(0,0,0,.03); }
+
       .footer{
         margin-top: 10px;
         font-size: 12px;
@@ -327,28 +359,30 @@
         font-weight: 600;
       }
 
-      /* ✅ cards already stack at <=900px */
       @media (max-width: 900px){
         .grid{ grid-template-columns: 1fr; }
         .loadingRow{ grid-template-columns: 1fr; }
       }
 
-      /* ✅ fix the exact issue you showed: header pills overlap on narrow screens */
       @media (max-width: 560px){
+        .container{ padding: 12px; }
         .header{
           flex-direction: column;
           align-items: stretch;
+          margin-bottom: 10px; /* reduce whitespace */
         }
         .pillRow{
           width: 100%;
           justify-content: flex-start;
+          margin-top: 6px;
         }
-        .pill{
-          width: fit-content;
+        .logo{
+          width: 56px;   /* reduce mobile whitespace */
+          height: 56px;
         }
+        .titleRow{ align-items: flex-start; }
       }
 
-      /* ✅ ultra narrow: make pills full width so they never float/overlap */
       @media (max-width: 380px){
         .pillRow{
           flex-direction: column;
@@ -391,6 +425,13 @@
         </div>
       </div>
 
+      <div class="upsell" id="hlw-upsell" style="display:none;">
+        <div class="upsellText">
+          Voor <b>€30</b> ontvangt u een volledig verduurzaamrapport van deze woning. Klik voor meer informatie.
+        </div>
+        <button class="upsellBtn" id="hlw-report-btn" type="button">Volledig Verduurzaamadvies</button>
+      </div>
+
       <div class="footer" id="hlw-footer" style="display:none;"></div>
     </div>
   `;
@@ -422,11 +463,12 @@
   const body = shadow.getElementById("hlw-body");
   const footer = shadow.getElementById("hlw-footer");
 
+  const upsell = shadow.getElementById("hlw-upsell");
+  const reportBtn = shadow.getElementById("hlw-report-btn");
+
   const pageUrl = overrideUrl || window.location.href;
 
   const qs = new URLSearchParams({ url: pageUrl });
-
-  // ✅ include enrich=1 when requested (demo)
   if (enrichMode) qs.set("enrich", "1");
 
   if (debugMode) {
@@ -443,8 +485,8 @@
         throw new Error(detail);
       }
 
-      const label = (j?.energyLabel?.label || "").toUpperCase() || null;
-      setEnergyLabelPill(label);
+      const currentLabel = (j?.energyLabel?.label || "").toUpperCase() || null;
+      setEnergyLabelPill(currentLabel);
 
       const bouwjaar = j?.energyLabel?.building?.bouwjaar ?? null;
       setYearPill(bouwjaar);
@@ -452,7 +494,20 @@
       const cards = j?.cards?.cards || [];
       const disclaimer = j?.cards?.disclaimer || "";
 
-      body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, label)).join("")}</div>`;
+      body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, currentLabel)).join("")}</div>`;
+
+      // show upsell
+      upsell.style.display = "flex";
+      reportBtn.addEventListener("click", () => {
+        track("full_report_click", { url: pageUrl, meta: { priceEur: 30 } });
+
+        if (reportUrl) {
+          window.open(reportUrl, "_blank", "noopener,noreferrer");
+        } else {
+          // URL komt later -> nu alleen tracken
+          // (geen alert, zodat UX netjes blijft)
+        }
+      });
 
       footer.style.display = "block";
       footer.innerHTML =
@@ -463,10 +518,20 @@
       setEnergyLabelPill(null);
       setYearPill(null);
       body.innerHTML = `<div class="error">Kon verduurzamingsadvies niet laden. (${escapeHtml(String(e.message || e))})</div>`;
+      upsell.style.display = "none";
       footer.style.display = "block";
       footer.innerHTML =
         `Begeleiding en uitvoer via <a href="https://www.woonwijzerwinkel.nl" target="_blank" rel="noopener noreferrer">WoonWijzerWinkel</a>.`;
     });
+
+  function track(type, payload) {
+    // best-effort (no throw)
+    fetch(`${apiBase}/api/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, ...(payload || {}) })
+    }).catch(() => {});
+  }
 
   function setYearPill(year) {
     if (!year) {
@@ -487,17 +552,67 @@
     dot.style.background = labelColor(label);
   }
 
-  function labelColor(label) {
-    const map = { A: "#1aa058", B: "#53b83a", C: "#b7c900", D: "#f1b600", E: "#f08a00", F: "#e85b3a", G: "#d93025" };
-    return map[label] || "#9aa0a6";
+  function baseLetter(label) {
+    const s = String(label || "").toUpperCase().trim();
+    return s ? s[0] : "";
   }
 
-  function parseJump(jump, currentLabel) {
-    const s = String(jump || "").replace(/\s+/g, "");
-    if (!s) return null;
-    const m = s.match(/^([A-G])(?:→|->)([A-G])$/i);
-    if (!m) return { after: currentLabel || null, text: s.toUpperCase() };
-    return { after: m[2].toUpperCase(), text: `${m[1].toUpperCase()}→${m[2].toUpperCase()}` };
+  function labelColor(label) {
+    const base = baseLetter(label);
+    const map = { A: "#1aa058", B: "#53b83a", C: "#b7c900", D: "#f1b600", E: "#f08a00", F: "#e85b3a", G: "#d93025" };
+    return map[base] || "#9aa0a6";
+  }
+
+  function isKierCard(title) {
+    const t = String(title || "").toLowerCase();
+    return t.includes("kier") || t.includes("tocht") || t.includes("ventil");
+  }
+
+  function guessAPlus(title) {
+    // simple heuristic: only used when model returns A→A
+    const t = String(title || "").toLowerCase();
+    if (t.includes("warmtepomp") || t.includes("isol")) return "A++";
+    if (t.includes("glas")) return "A+";
+    return "A+";
+  }
+
+  function parseJump(labelJump, currentLabel, title) {
+    const before = (currentLabel || "").toUpperCase() || null;
+
+    const raw = String(labelJump || "").trim();
+    if (!raw) {
+      // if no jump given, show conservative
+      return { before: before || "—", after: "—", text: `van ${before || "—"} → —`, color: "#9aa0a6" };
+    }
+
+    // Normalize: remove "Labelsprong" prefix if present
+    const cleaned = raw
+      .replace(/labelsprong[:\s]*/i, "")
+      .replace(/\s+/g, "")
+      .replace("->", "→");
+
+    // Accept A, A+, A++, A+++ etc
+    const m = cleaned.match(/^([A-G](?:\+{1,3})?)→([A-G](?:\+{1,3})?)$/i);
+
+    let b = before || "—";
+    let a = "—";
+
+    if (m) {
+      b = (m[1] || b).toUpperCase();
+      a = (m[2] || "—").toUpperCase();
+    } else {
+      // fallback: if it's some unknown format, just show raw
+      const col = labelColor(before);
+      return { before: before || "—", after: "—", text: `van ${before || "—"} → —`, color: col, raw };
+    }
+
+    // If current is A and model says A→A, show A→A+ (except kier/tocht)
+    if (b === "A" && a === "A" && !isKierCard(title)) {
+      a = guessAPlus(title);
+    }
+
+    const color = labelColor(a !== "—" ? a : b);
+    return { before: b, after: a, text: `van ${b} → ${a}`, color };
   }
 
   function renderCard(c, currentLabel) {
@@ -511,9 +626,9 @@
 
     const icon = iconSvgForTitle(c.title || "");
 
-    const jump = parseJump(c.label_jump, currentLabel);
-    const jumpText = jump?.text || "—";
-    const jumpColor = jump?.after ? labelColor(jump.after) : (currentLabel ? labelColor(currentLabel) : "#9aa0a6");
+    const j = parseJump(c.label_jump, currentLabel, c.title || "");
+    const jumpText = j.text;
+    const jumpColor = j.color;
 
     return `
       <div class="card">
