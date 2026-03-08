@@ -85,6 +85,36 @@ function csvEscape(v) {
   return s;
 }
 
+// ✅ Helper: detect if a card is about solar panels (NL terms)
+function isSolarCard(card) {
+  const t = `${card?.title || ""} ${card?.subtitle || ""} ${(card?.bullets || []).join(" ")}`.toLowerCase();
+  return (
+    t.includes("zonnepaneel") ||
+    t.includes("zonnepanelen") ||
+    t.includes("pv") ||
+    t.includes("photovolta") ||
+    t.includes("panelen op het dak")
+  );
+}
+
+// ✅ Helper: a compact fallback card (never solar)
+function solarFallbackCard(placeHint) {
+  return {
+    title: "Kierdichting & ventilatie",
+    subtitle: "Snelle winst in comfort en energiekosten.",
+    bullets: [
+      "Tochtstrips bij kozijnen",
+      "Kieren en naden kitten",
+      "Ventilatie checken/instellen"
+    ],
+    cta: "Check de mogelijkheden",
+    label_jump: "",
+    indicative_cost: "€50–€600",
+    indicative_saving: "€10–€35",
+    indicative_value_uplift: placeHint ? "€1k–€4k" : ""
+  };
+}
+
 // Handy: check what code is running
 router.get("/version", async (_req, res) => {
   res.json({
@@ -140,15 +170,6 @@ router.post("/track", express.json({ limit: "50kb" }), async (req, res) => {
 /**
  * CSV export of events + address fields (from disk cache)
  * GET /api/export.csv
- *
- * Auth:
- * - set EXPORT_TOKEN in env
- * - use header Authorization: Bearer <EXPORT_TOKEN>
- *   OR ?token=<EXPORT_TOKEN>
- *
- * Filters:
- * - ?type=cta_click
- * - ?since=YYYY-MM-DD (ISO)
  */
 router.get("/export.csv", async (req, res) => {
   const token = process.env.EXPORT_TOKEN;
@@ -176,7 +197,7 @@ router.get("/export.csv", async (req, res) => {
   res.setHeader("Content-Disposition", 'attachment; filename="events.csv"');
   res.write("ts,type,postcode,huisnummer,huisletter,huisnummertoevoeging,listingId,url,ipMasked,ipHash,ip\n");
 
-  const addrMemo = new Map(); // cacheKey -> addr object
+  const addrMemo = new Map();
 
   const rl = readline.createInterface({
     input: createReadStream(eventsPath, { encoding: "utf8" }),
@@ -200,7 +221,6 @@ router.get("/export.csv", async (req, res) => {
       if (Number.isFinite(t) && t < sinceMs) continue;
     }
 
-    // Resolve cacheKey (event -> url fallback)
     let ck = evt.cacheKey || null;
     if (!ck && evt.url) {
       try {
@@ -260,7 +280,6 @@ router.get("/cards", async (req, res) => {
 
   const websearchEnabled = (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true";
 
-  // timings + stage debug
   const timings = {};
   let stage = "start";
 
@@ -298,7 +317,6 @@ router.get("/cards", async (req, res) => {
         return res.json({ ...disk, cached: true, cacheLayer: "disk" });
       }
 
-      // in-flight dedupe
       if (inflight.has(cacheKey)) {
         const inflightPayload = await inflight.get(cacheKey);
         return res.json({ ...inflightPayload, cached: true, cacheLayer: "inflight" });
@@ -359,10 +377,7 @@ router.get("/cards", async (req, res) => {
             askingPriceEur: facts.askingPriceEur ?? null,
             hasSolarPanels: facts.hasSolarPanels ?? null,
             solarPanelsCount: facts.solarPanelsCount ?? null,
-
-            // NEW: list of already-present measures (e.g. ["zonnepanelen", "dakisolatie", ...])
             existingMeasures: Array.isArray(facts.existingMeasures) ? facts.existingMeasures : [],
-
             notes: facts.notes ?? ""
           };
 
@@ -403,7 +418,7 @@ router.get("/cards", async (req, res) => {
       }
 
       // 4) Cards (fatal)
-      const cards = await timed("openai_cards", async () =>
+      let cards = await timed("openai_cards", async () =>
         openaiGenerateCards({
           address: {
             street: bag?.openbareRuimteNaam || parsedResolved.street,
@@ -415,8 +430,6 @@ router.get("/cards", async (req, res) => {
           },
           bag,
           energyLabel,
-
-          // UPDATED: pass existingMeasures through to model
           listing: {
             url: listing.url,
             askingPriceEur: listing.askingPriceEur,
@@ -426,6 +439,20 @@ router.get("/cards", async (req, res) => {
           }
         })
       );
+
+      // ✅ HARD GUARD: if PV already present, never allow solar advice in final cards
+      const pvPresent =
+        listing?.hasSolarPanels === true ||
+        (Array.isArray(listing?.existingMeasures) && listing.existingMeasures.includes("zonnepanelen"));
+
+      if (pvPresent && cards?.cards && Array.isArray(cards.cards)) {
+        const filtered = cards.cards.filter((c) => !isSolarCard(c));
+        if (filtered.length !== cards.cards.length) {
+          // Replace removed cards to keep exactly 3
+          while (filtered.length < 3) filtered.push(solarFallbackCard(parsedResolved.place || ""));
+          cards = { ...cards, cards: filtered.slice(0, 3) };
+        }
+      }
 
       const payload = {
         addressParsedFromUrl: parsedResolved,
@@ -440,7 +467,8 @@ router.get("/cards", async (req, res) => {
                 schemaDebug: getSchemaDebug(),
                 stage,
                 timings,
-                flags: { fast, enrich, noCache, websearchEnabled }
+                flags: { fast, enrich, noCache, websearchEnabled },
+                pvPresent
               }
             }
           : {})
@@ -450,7 +478,6 @@ router.get("/cards", async (req, res) => {
       cache.set(cacheKey, payload);
 
       if (!noCache) {
-        // Compact payload for disk (avoid huge blobs like energyLabel.raw)
         const toPersist = {
           addressParsedFromUrl: payload.addressParsedFromUrl,
           bag: payload.bag,
@@ -461,7 +488,7 @@ router.get("/cards", async (req, res) => {
                 building: payload.energyLabel.building ?? null
               }
             : null,
-          listing: payload.listing ?? null, // includes existingMeasures now
+          listing: payload.listing ?? null,
           cards: payload.cards,
           generatedAt: payload.generatedAt
         };
@@ -481,7 +508,6 @@ router.get("/cards", async (req, res) => {
     res.json(payload);
   } catch (err) {
     if (!noCache) {
-      // avoid stuck inflight
       try {
         const parsedTmp = parseHuislijnUrl(url);
         const ckTmp = `${parsedTmp.listingId || ""}|${parsedTmp.street}|${parsedTmp.houseNumberRaw}|${parsedTmp.place || ""}`;
@@ -490,7 +516,6 @@ router.get("/cards", async (req, res) => {
     }
 
     console.error(err);
-
     const cause = err?.cause ? String(err.cause?.message || err.cause) : null;
 
     res.status(500).json({
@@ -503,9 +528,7 @@ router.get("/cards", async (req, res) => {
               stage: err?._stage || stage,
               cause,
               timings,
-              flags: {
-                websearchEnabled: (process.env.ENABLE_WEBSEARCH || "true").toLowerCase() === "true"
-              },
+              flags: { fast, enrich, noCache, websearchEnabled },
               envPresent: {
                 OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
                 GEMINI_API_KEY: Boolean(process.env.GEMINI_API_KEY),
