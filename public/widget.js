@@ -502,7 +502,7 @@
 
     const raw = String(labelJump || "").trim();
     if (!raw) {
-      return { text: `van ${before || "—"} → —`, color: "#9aa0a6" };
+      return { before: before || "—", after: "—", text: `van ${before || "—"} naar —`, color: col, raw };
     }
 
     const cleaned = raw
@@ -525,7 +525,7 @@
     }
 
     const color = labelColor(a !== "—" ? a : b);
-    return { text: `van ${b} → ${a}`, color };
+    return { before: before || "—", after: "—", text: `van ${before || "—"} naar —`, color: col, raw };
   }
 
   function renderCard(c, currentLabel) {
