@@ -6,7 +6,6 @@
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
   const enrichMode = script?.getAttribute("data-enrich") === "1";
-
   const logoUrl = script?.getAttribute("data-logo") || "";
   const reportUrl = script?.getAttribute("data-report-url") || "";
 
@@ -37,7 +36,6 @@
 
         --hlw-border: rgba(0,0,0,.10);
         --hlw-muted: rgba(0,0,0,.62);
-        --hlw-soft: rgba(0,0,0,.04);
         --hlw-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
 
         --hlw-card-radius: 14px;
@@ -59,19 +57,17 @@
         overflow: hidden;
       }
 
+      /* ✅ GRID header (fixes flex-wrap gap on mobile) */
       .header{
-        display:flex;
-        justify-content: space-between;
-        align-items:flex-start;
-        gap: 12px;
+        display:grid;
+        grid-template-columns: 1fr auto;
+        column-gap: 12px;
+        row-gap: 8px;
+        align-items:start;
         margin-bottom: 12px;
-        flex-wrap: wrap;
       }
 
-      .headerLeft{
-        flex: 1 1 320px;
-        min-width: 0;
-      }
+      .headerLeft{ min-width: 0; }
 
       .titleRow{
         display:flex;
@@ -110,7 +106,6 @@
         flex-wrap: wrap;
         justify-content:flex-end;
         align-items:flex-start;
-        flex: 0 0 auto;
       }
 
       .pill{
@@ -283,43 +278,23 @@
         .loadingRow{ grid-template-columns: 1fr; }
       }
 
-      /* ✅ MOBILE: remove the big whitespace */
+      /* ✅ MOBILE: kill the whitespace by stacking header rows tightly */
       @media (max-width: 560px){
         .container{ padding: 12px; }
 
         .header{
-          flex-direction: column;
-          align-items: stretch;
-          gap: 8px;            /* tighter */
-          margin-bottom: 8px;  /* tighter */
+          grid-template-columns: 1fr;
+          row-gap: 6px;
+          margin-bottom: 8px;
         }
 
-        .headerLeft{
-          flex: 0 0 auto;      /* stop reserving height */
-        }
-
-        .titleRow{
-          gap: 8px;
-          align-items: flex-start;
-        }
-
-        .logo{
-          width: 44px;         /* much smaller => less vertical whitespace */
-          height: 44px;
-        }
-
-        .title{
-          line-height: 1.05;   /* tighter */
-        }
-
-        .subtitle{
-          margin-top: 4px;     /* tighter */
-        }
+        .titleRow{ gap: 8px; align-items:flex-start; }
+        .logo{ width: 44px; height: 44px; } /* much smaller */
+        .subtitle{ margin-top: 4px; }
 
         .pillRow{
-          width: 100%;
-          justify-content: flex-start;
-          margin-top: 0;       /* remove extra gap */
+          justify-content:flex-start;
+          margin-top: 0;
         }
       }
 
@@ -410,10 +385,7 @@
   fetch(`${apiBase}/api/cards?${qs.toString()}`)
     .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
     .then(({ ok, j }) => {
-      if (!ok) {
-        const detail = debugMode ? (j?.detail || j?.error || "API error") : (j?.error || "API error");
-        throw new Error(detail);
-      }
+      if (!ok) throw new Error(debugMode ? (j?.detail || j?.error || "API error") : (j?.error || "API error"));
 
       const currentLabel = (j?.energyLabel?.label || "").toUpperCase() || null;
       setEnergyLabelPill(currentLabel);
@@ -456,20 +428,13 @@
   }
 
   function setYearPill(year) {
-    if (!year) {
-      yearPill.style.display = "none";
-      return;
-    }
+    if (!year) { yearPill.style.display = "none"; return; }
     yearPill.style.display = "inline-flex";
     yearText.textContent = `Bouwjaar: ${year}`;
   }
 
   function setEnergyLabelPill(label) {
-    if (!label) {
-      pillText.textContent = "Energielabel: onbekend";
-      dot.style.background = "#9aa0a6";
-      return;
-    }
+    if (!label) { pillText.textContent = "Energielabel: onbekend"; dot.style.background = "#9aa0a6"; return; }
     pillText.textContent = `Energielabel: ${label}`;
     dot.style.background = labelColor(label);
   }
@@ -499,33 +464,20 @@
 
   function parseJump(labelJump, currentLabel, title) {
     const before = (currentLabel || "").toUpperCase() || null;
-
     const raw = String(labelJump || "").trim();
-    if (!raw) {
-      return { before: before || "—", after: "—", text: `van ${before || "—"} naar —`, color: col, raw };
-    }
+    if (!raw) return { text: `van ${before || "—"} naar —`, color: "#9aa0a6" };
 
-    const cleaned = raw
-      .replace(/labelsprong[:\s]*/i, "")
-      .replace(/\s+/g, "")
-      .replace("->", "→");
-
+    const cleaned = raw.replace(/labelsprong[:\s]*/i, "").replace(/\s+/g, "").replace("->", "→");
     const m = cleaned.match(/^([A-G](?:\+{1,3})?)→([A-G](?:\+{1,3})?)$/i);
 
     let b = before || "—";
     let a = "—";
+    if (m) { b = (m[1] || b).toUpperCase(); a = (m[2] || "—").toUpperCase(); }
 
-    if (m) {
-      b = (m[1] || b).toUpperCase();
-      a = (m[2] || "—").toUpperCase();
-    }
-
-    if (b === "A" && a === "A" && !isKierCard(title)) {
-      a = guessAPlus(title);
-    }
+    if (b === "A" && a === "A" && !isKierCard(title)) a = guessAPlus(title);
 
     const color = labelColor(a !== "—" ? a : b);
-    return { before: before || "—", after: "—", text: `van ${before || "—"} naar —`, color: col, raw };
+    return { text: `van ${b} naar ${a}`, color };
   }
 
   function renderCard(c, currentLabel) {
