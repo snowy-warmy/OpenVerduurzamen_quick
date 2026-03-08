@@ -3,17 +3,11 @@
   const apiBase = script?.getAttribute("data-api-base") || new URL(script.src).origin;
   const targetSelector = script?.getAttribute("data-target") || "#huislijn-duurzaamheid-widget";
 
-  // Demo/testing overrides
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
-
-  // Enrich control (demo uses this)
   const enrichMode = script?.getAttribute("data-enrich") === "1";
 
-  // Optional logo shown next to title
   const logoUrl = script?.getAttribute("data-logo") || "";
-
-  // Report URL (optional; can be empty now)
   const reportUrl = script?.getAttribute("data-report-url") || "";
 
   let host = document.querySelector(targetSelector);
@@ -23,12 +17,10 @@
     document.body.appendChild(host);
   }
 
-  // Best-effort match host typography/colors
   try {
     const bodyStyle = getComputedStyle(document.body);
     const linkEl = document.querySelector("a");
     const linkColor = linkEl ? getComputedStyle(linkEl).color : "#0b5fff";
-
     host.style.setProperty("--hlw-font", bodyStyle.fontFamily || "system-ui, -apple-system, Segoe UI, Roboto, Arial");
     host.style.setProperty("--hlw-text", bodyStyle.color || "#111");
     host.style.setProperty("--hlw-accent", linkColor || "#0b5fff");
@@ -48,7 +40,6 @@
         --hlw-soft: rgba(0,0,0,.04);
         --hlw-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
 
-        --hlw-radius: 16px;
         --hlw-card-radius: 14px;
 
         font-family: var(--hlw-font);
@@ -101,7 +92,7 @@
         margin: 0;
         font-size: 1.5rem !important;
         font-weight: 400;
-        line-height: 1.2;
+        line-height: 1.15;
         color: #01444f;
       }
 
@@ -157,35 +148,19 @@
         padding: 12px;
         box-sizing: border-box;
         min-width: 0;
-
         display:flex;
         flex-direction: column;
         height: 100%;
       }
 
-      .cardTop{
-        display:flex;
-        align-items:flex-start;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
-
-      .headStack{
-        display:flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 0;
-      }
+      .cardTop{ display:flex; align-items:flex-start; gap: 10px; margin-bottom: 10px; }
+      .headStack{ display:flex; flex-direction: column; gap: 8px; min-width: 0; }
 
       .iconWrap{
-        width: 34px;
-        height: 34px;
-        border-radius: 12px;
+        width: 34px; height: 34px; border-radius: 12px;
         background: rgba(0,0,0,.03);
         border: 1px solid rgba(0,0,0,.08);
-        display:flex;
-        align-items:center;
-        justify-content:center;
+        display:flex; align-items:center; justify-content:center;
         flex: 0 0 auto;
       }
 
@@ -196,16 +171,12 @@
         line-height: 1.25;
         letter-spacing: -0.005em;
         color: #01444f;
-
-        word-break: normal;
         overflow-wrap: anywhere;
         hyphens: auto;
       }
 
       .jumpPill{
-        display:inline-flex;
-        align-items:center;
-        gap: 6px;
+        display:inline-flex; align-items:center; gap: 6px;
         padding: 6px 8px;
         border-radius: 999px;
         border: 1px solid rgba(0,0,0,.10);
@@ -216,13 +187,7 @@
         white-space: nowrap;
         width: fit-content;
       }
-
-      .jumpDot{
-        width: 9px;
-        height: 9px;
-        border-radius: 999px;
-        background: #9aa0a6;
-      }
+      .jumpDot{ width: 9px; height: 9px; border-radius: 999px; background: #9aa0a6; }
 
       .bullets{
         margin: 0 0 12px;
@@ -242,49 +207,18 @@
         padding-top: 10px;
         border-top: 1px solid rgba(0,0,0,.08);
       }
-
-      .kpi{
-        border: 1px solid rgba(0,0,0,.10);
-        background: rgba(0,0,0,.02);
-        border-radius: 12px;
-        padding: 8px 10px;
-      }
-
-      .kpiHead{
-        display:flex;
-        align-items:center;
-        gap: 8px;
-        margin-bottom: 4px;
-      }
-
+      .kpi{ border: 1px solid rgba(0,0,0,.10); background: rgba(0,0,0,.02); border-radius: 12px; padding: 8px 10px; }
+      .kpiHead{ display:flex; align-items:center; gap: 8px; margin-bottom: 4px; }
       .kpiIcon{
-        width: 18px;
-        height: 18px;
-        border-radius: 7px;
+        width: 18px; height: 18px; border-radius: 7px;
         background: rgba(0,0,0,.05);
         border: 1px solid rgba(0,0,0,.06);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size: 11px;
-        font-weight: 700;
-        color: rgba(0,0,0,.65);
+        display:flex; align-items:center; justify-content:center;
+        font-size: 11px; font-weight: 700; color: rgba(0,0,0,.65);
         flex: 0 0 auto;
       }
-
-      .kpiLabel{
-        font-size: 12px;
-        color: rgba(0,0,0,.60);
-        font-weight: 600;
-      }
-
-      .kpiValue{
-        font-size: 12px;
-        font-weight: 500;
-        font-variant-numeric: tabular-nums;
-        line-height: 1.2;
-        word-break: normal;
-      }
+      .kpiLabel{ font-size: 12px; color: rgba(0,0,0,.60); font-weight: 600; }
+      .kpiValue{ font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
 
       .upsell{
         margin-top: 12px;
@@ -296,7 +230,6 @@
         justify-content: space-between;
         flex-wrap: wrap;
       }
-
       .upsellText{
         font-size: 12px;
         color: rgba(0,0,0,.62);
@@ -305,7 +238,6 @@
         flex: 1 1 300px;
         min-width: 0;
       }
-
       .upsellBtn{
         border: 1px solid rgba(0,0,0,.20);
         background: #fff;
@@ -326,12 +258,7 @@
         line-height: 1.35;
         font-weight: 500;
       }
-
-      .footer a{
-        color: var(--hlw-accent);
-        text-decoration: none;
-        font-weight: 600;
-      }
+      .footer a{ color: var(--hlw-accent); text-decoration: none; font-weight: 600; }
       .footer a:hover{ text-decoration: underline; }
 
       .loadingRow{
@@ -347,51 +274,58 @@
         background-size: 220% 100%;
         animation: shimmer 1.1s ease-in-out infinite;
       }
-      @keyframes shimmer{
-        0%{ background-position: 0% 0%; }
-        100%{ background-position: 220% 0%; }
-      }
+      @keyframes shimmer{ 0%{ background-position: 0% 0%; } 100%{ background-position: 220% 0%; } }
 
-      .error{
-        font-size: 12px;
-        color: #b00020;
-        padding: 6px 0;
-        font-weight: 600;
-      }
+      .error{ font-size: 12px; color: #b00020; padding: 6px 0; font-weight: 600; }
 
       @media (max-width: 900px){
         .grid{ grid-template-columns: 1fr; }
         .loadingRow{ grid-template-columns: 1fr; }
       }
 
+      /* ✅ MOBILE: remove the big whitespace */
       @media (max-width: 560px){
         .container{ padding: 12px; }
+
         .header{
           flex-direction: column;
           align-items: stretch;
-          margin-bottom: 10px; /* reduce whitespace */
+          gap: 8px;            /* tighter */
+          margin-bottom: 8px;  /* tighter */
         }
+
+        .headerLeft{
+          flex: 0 0 auto;      /* stop reserving height */
+        }
+
+        .titleRow{
+          gap: 8px;
+          align-items: flex-start;
+        }
+
+        .logo{
+          width: 44px;         /* much smaller => less vertical whitespace */
+          height: 44px;
+        }
+
+        .title{
+          line-height: 1.05;   /* tighter */
+        }
+
+        .subtitle{
+          margin-top: 4px;     /* tighter */
+        }
+
         .pillRow{
           width: 100%;
           justify-content: flex-start;
-          margin-top: 6px;
+          margin-top: 0;       /* remove extra gap */
         }
-        .logo{
-          width: 56px;   /* reduce mobile whitespace */
-          height: 56px;
-        }
-        .titleRow{ align-items: flex-start; }
       }
 
       @media (max-width: 380px){
-        .pillRow{
-          flex-direction: column;
-          align-items: stretch;
-        }
-        .pill{
-          width: 100%;
-          justify-content: flex-start;
-        }
+        .pillRow{ flex-direction: column; align-items: stretch; }
+        .pill{ width: 100%; justify-content: flex-start; }
       }
     </style>
 
@@ -456,13 +390,10 @@
 
   const pillText = shadow.getElementById("hlw-pill-text");
   const dot = shadow.getElementById("hlw-dot");
-
   const yearPill = shadow.getElementById("hlw-pill-year");
   const yearText = shadow.getElementById("hlw-year-text");
-
   const body = shadow.getElementById("hlw-body");
   const footer = shadow.getElementById("hlw-footer");
-
   const upsell = shadow.getElementById("hlw-upsell");
   const reportBtn = shadow.getElementById("hlw-report-btn");
 
@@ -470,7 +401,6 @@
 
   const qs = new URLSearchParams({ url: pageUrl });
   if (enrichMode) qs.set("enrich", "1");
-
   if (debugMode) {
     qs.set("debug", "1");
     qs.set("nocache", "1");
@@ -496,17 +426,10 @@
 
       body.innerHTML = `<div class="grid">${cards.map((c) => renderCard(c, currentLabel)).join("")}</div>`;
 
-      // show upsell
       upsell.style.display = "flex";
       reportBtn.addEventListener("click", () => {
         track("full_report_click", { url: pageUrl, meta: { priceEur: 30 } });
-
-        if (reportUrl) {
-          window.open(reportUrl, "_blank", "noopener,noreferrer");
-        } else {
-          // URL komt later -> nu alleen tracken
-          // (geen alert, zodat UX netjes blijft)
-        }
+        if (reportUrl) window.open(reportUrl, "_blank", "noopener,noreferrer");
       });
 
       footer.style.display = "block";
@@ -525,7 +448,6 @@
     });
 
   function track(type, payload) {
-    // best-effort (no throw)
     fetch(`${apiBase}/api/track`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -569,7 +491,6 @@
   }
 
   function guessAPlus(title) {
-    // simple heuristic: only used when model returns A→A
     const t = String(title || "").toLowerCase();
     if (t.includes("warmtepomp") || t.includes("isol")) return "A++";
     if (t.includes("glas")) return "A+";
@@ -581,17 +502,14 @@
 
     const raw = String(labelJump || "").trim();
     if (!raw) {
-      // if no jump given, show conservative
-      return { before: before || "—", after: "—", text: `van ${before || "—"} → —`, color: "#9aa0a6" };
+      return { text: `van ${before || "—"} → —`, color: "#9aa0a6" };
     }
 
-    // Normalize: remove "Labelsprong" prefix if present
     const cleaned = raw
       .replace(/labelsprong[:\s]*/i, "")
       .replace(/\s+/g, "")
       .replace("->", "→");
 
-    // Accept A, A+, A++, A+++ etc
     const m = cleaned.match(/^([A-G](?:\+{1,3})?)→([A-G](?:\+{1,3})?)$/i);
 
     let b = before || "—";
@@ -600,19 +518,14 @@
     if (m) {
       b = (m[1] || b).toUpperCase();
       a = (m[2] || "—").toUpperCase();
-    } else {
-      // fallback: if it's some unknown format, just show raw
-      const col = labelColor(before);
-      return { before: before || "—", after: "—", text: `van ${before || "—"} → —`, color: col, raw };
     }
 
-    // If current is A and model says A→A, show A→A+ (except kier/tocht)
     if (b === "A" && a === "A" && !isKierCard(title)) {
       a = guessAPlus(title);
     }
 
     const color = labelColor(a !== "—" ? a : b);
-    return { before: b, after: a, text: `van ${b} → ${a}`, color };
+    return { text: `van ${b} → ${a}`, color };
   }
 
   function renderCard(c, currentLabel) {
