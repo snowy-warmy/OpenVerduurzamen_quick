@@ -27,8 +27,11 @@ export async function openaiGenerateCards({ address, bag, energyLabel, listing }
     "Bullets: EXACT 3 bullets, max 5 woorden per bullet. " +
     "indicative_cost: bandbreedte, bv. '€2.500–€6.000'. " +
     "indicative_saving: MAANDELIJKS, bv. '€20–€45'. " +
+    "BELANGRIJK: listing.existingMeasures bevat reeds aanwezige maatregelen. " +
+    "Adviseer NOOIT een maatregel die al aanwezig is. " +
+    "Specifiek: als existingMeasures 'zonnepanelen' bevat of listing.hasSolarPanels=true -> geen zonnepanelen kaart. "
     "indicative_value_uplift: bv. '€5k–€15k (~1–3%)' of ''. " +
-    "label_jump: bv. 'C→B' of 'A→A' of ''. " +
+    "label_jump: bv. 'Labelsprong C→B' of 'Labelsprong A→A+' of ''. " +
     "Geen harde garanties. " +
     `Schema versie: ${OPENAI_SCHEMA_VERSION}.`;
 
