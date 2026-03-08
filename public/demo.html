@@ -26,21 +26,22 @@
       const apiBase = location.origin;
 
       function loadWidget(url) {
-        // remove old script
         const old = document.getElementById("hlw-script");
         if (old) old.remove();
 
-        // IMPORTANT: keep the same host div (widget reuses shadowRoot now)
         const s = document.createElement("script");
         s.id = "hlw-script";
         s.src = apiBase + "/widget.js";
         s.setAttribute("data-target", "#huislijn-duurzaamheid-widget");
-        s.setAttribute("data-url", url);      // <- override Huislijn URL
-        s.setAttribute("data-debug", "1");    // <- show better errors + nocache
+        s.setAttribute("data-url", url);
+        s.setAttribute("data-debug", "1");
         s.setAttribute("data-logo", "https://openverduurzamen-quick.onrender.com/OpenVerduurzamenlogo.jpg");
 
-        // ✅ IMPORTANT: force enrichment for demo so existing measures (like zonnepanelen) are detected
+        // ✅ demo: altijd verrijken zodat bestaande maatregelen (zoals zonnepanelen) meegenomen worden
         s.setAttribute("data-enrich", "1");
+
+        // ✅ later: zet hier je echte report URL
+        s.setAttribute("data-report-url", "");
 
         document.body.appendChild(s);
       }
