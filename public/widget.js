@@ -7,6 +7,9 @@
   const overrideUrl = script?.getAttribute("data-url");
   const debugMode = script?.getAttribute("data-debug") === "1";
 
+  // ✅ NEW: allow forcing enrich from embed/demo
+  const enrichMode = script?.getAttribute("data-enrich") === "1";
+
   // Optional logo shown next to title
   const logoUrl = script?.getAttribute("data-logo") || "";
 
@@ -392,11 +395,13 @@
     </div>
   `;
 
-  // Logo fallback (if browser blocks first src for any reason)
+  // Logo fallback (try both jpg and png)
   const logoEl = shadow.getElementById("hlw-logo");
   if (logoEl) {
     const fallbacks = [
       logoUrl,
+      `${apiBase}/OpenVerduurzamenlogo.jpg`,
+      `${apiBase}/public/OpenVerduurzamenlogo.jpg`,
       `${apiBase}/OpenVerduurzamenlogo.png`,
       `${apiBase}/public/OpenVerduurzamenlogo.png`
     ].filter(Boolean);
@@ -420,6 +425,10 @@
   const pageUrl = overrideUrl || window.location.href;
 
   const qs = new URLSearchParams({ url: pageUrl });
+
+  // ✅ include enrich=1 when requested (demo)
+  if (enrichMode) qs.set("enrich", "1");
+
   if (debugMode) {
     qs.set("debug", "1");
     qs.set("nocache", "1");
